@@ -13,7 +13,7 @@ import {
   LogOut,
   Settings,
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
+import { LogoutConfirm } from '@/components/logout-confirm';
 
 interface NavItem {
   label: string;
@@ -34,11 +34,6 @@ const navItems: NavItem[] = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-  };
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-primary to-primary/90 text-white overflow-y-auto z-40">
@@ -78,13 +73,18 @@ export function AdminSidebar() {
 
       {/* Logout Button */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Logout</span>
-        </button>
+        <LogoutConfirm
+          renderTrigger={(open) => (
+            <button
+              type="button"
+              onClick={open}
+              className="flex items-center gap-3 w-full px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Logout</span>
+            </button>
+          )}
+        />
       </div>
     </aside>
   );

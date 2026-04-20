@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { AdminPageShell } from '@/components/admin-page-shell';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -77,7 +77,7 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold self-start sm:self-auto">
               <ShieldCheck className="w-4 h-4" />
               {user?.isAdmin ? 'Administrator' : 'User'}
             </div>

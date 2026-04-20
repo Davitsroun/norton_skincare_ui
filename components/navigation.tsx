@@ -7,18 +7,14 @@ import { useCart } from '@/lib/cart-context';
 import { Menu, X, LogOut, ShoppingCart, User, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { NotificationCenter } from './notification-center';
+import { LogoutConfirm } from './logout-confirm';
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { cartCount } = useCart();
   const router = useRouter();
   const pathname = usePathname();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/');
-  };
 
   const navItems = [
     { href: '/home', label: 'Home' },
@@ -107,13 +103,18 @@ export function Navigation() {
                   <User className="h-4 w-4" />
                 </div>
               )}
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-600 hover:text-red-600 flex items-center gap-1 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
+              <LogoutConfirm
+                renderTrigger={(open) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="text-sm text-gray-600 hover:text-red-600 flex items-center gap-1 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden sm:inline">Logout</span>
+                  </button>
+                )}
+              />
             </div>
 
             {/* Mobile Menu Button */}
@@ -143,13 +144,18 @@ export function Navigation() {
                 {item.label}
               </Link>
             ))}
-            <button
-              onClick={handleLogout}
-              className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
+            <LogoutConfirm
+              renderTrigger={(open) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              )}
+            />
           </div>
         )}
       </div>

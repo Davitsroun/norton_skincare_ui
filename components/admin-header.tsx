@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { Bell, Search } from 'lucide-react';
 
@@ -37,20 +38,24 @@ export function AdminHeader({ title, description }: AdminHeaderProps) {
             <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
           </button>
 
-          {/* User Profile */}
-          <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
+          {/* User profile — admin layout with sidebar (same as other admin pages) */}
+          <Link
+            href="/admin/profile"
+            className="flex items-center gap-3 pl-4 border-l border-gray-200 rounded-lg -mr-1 pr-1 py-1 transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            title="My profile"
+          >
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-900">
                 {user?.firstName} {user?.lastName}
               </p>
-              <p className="text-xs text-gray-500">Admin</p>
+              <p className="text-xs text-gray-500">My profile</p>
             </div>
             <img
               src={user?.imageUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop'}
-              alt={user?.firstName || user?.username || 'Profile'}
+              alt=""
               className="w-10 h-10 rounded-full object-cover border-2 border-primary"
             />
-          </div>
+          </Link>
         </div>
       </div>
     </header>
