@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
-import { Navigation } from '@/components/navigation';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 
@@ -25,12 +24,7 @@ export default function CartPage() {
   }, [isAuthenticated, isLoading, router]);
 
   if (!isClient || isLoading || isPageLoading) {
-    return (
-      <>
-        <Navigation />
-        <SkeletonLoader />
-      </>
-    );
+    return <SkeletonLoader />;
   }
 
   if (!isAuthenticated) {
@@ -38,9 +32,7 @@ export default function CartPage() {
   }
 
   return (
-    <>
-      <Navigation />
-      <div className="min-h-screen bg-white py-12">
+    <div className="min-h-screen bg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-12">
@@ -174,6 +166,5 @@ export default function CartPage() {
           )}
         </div>
       </div>
-    </>
   );
 }

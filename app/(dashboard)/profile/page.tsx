@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Navigation } from '@/components/navigation';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { ProfileView } from '@/components/profile-view';
 
@@ -29,22 +28,12 @@ export default function ProfilePage() {
   }, []);
 
   if (!isClient || isLoading || isPageLoading) {
-    return (
-      <>
-        <Navigation />
-        <SkeletonLoader />
-      </>
-    );
+    return <SkeletonLoader />;
   }
 
   if (!isAuthenticated) {
     return null;
   }
 
-  return (
-    <>
-      <Navigation />
-      <ProfileView variant="standalone" />
-    </>
-  );
+  return <ProfileView variant="standalone" />;
 }

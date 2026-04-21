@@ -4,43 +4,11 @@ import { AdminPageShell } from '@/components/admin-page-shell';
 import { useState } from 'react';
 import { Search, Shield, AlertCircle, MoreVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-const mockUsers = [
-  {
-    id: 1,
-    name: 'John Doe',
-    email: 'john@example.com',
-    joined: '01 Jan 2023',
-    orders: 12,
-    status: 'Active',
-    role: 'Customer',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop',
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    email: 'sarah@example.com',
-    joined: '15 Feb 2023',
-    orders: 8,
-    status: 'Active',
-    role: 'Customer',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop',
-  },
-  {
-    id: 3,
-    name: 'Mike Chen',
-    email: 'mike@example.com',
-    joined: '22 Mar 2023',
-    orders: 0,
-    status: 'Inactive',
-    role: 'Customer',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=40&h=40&fit=crop',
-  },
-];
+import { mockAdminUsers } from '@/lib/mock-data/index';
 
 export default function AdminUsers() {
   const { toast } = useToast();
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState(mockAdminUsers);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -182,7 +150,7 @@ export default function AdminUsers() {
 
           {/* Footer */}
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-600">Showing {filteredUsers.length} of {mockUsers.length} users</p>
+            <p className="text-sm text-gray-600">Showing {filteredUsers.length} of {mockAdminUsers.length} users</p>
             <div className="flex items-center gap-2">
               <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Â«</button>
               <button className="px-3 py-2 border border-primary bg-primary text-white rounded-lg">1</button>

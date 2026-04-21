@@ -1,7 +1,7 @@
 'use client';
 
-import { Navigation } from '@/components/navigation';
 import { ProtectedRoute } from '@/components/protected-route';
+import { SiteFooter } from '@/components/site-footer';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { Phone, Mail, MapPin, CheckCircle, Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,6 @@ export default function AboutPage() {
   if (isLoading) {
     return (
       <ProtectedRoute>
-        <Navigation />
         <SkeletonLoader />
       </ProtectedRoute>
     );
@@ -54,8 +53,6 @@ export default function AboutPage() {
 
   return (
     <ProtectedRoute>
-      <Navigation />
-
       {/* Header Section */}
       <section className="relative overflow-hidden py-16 sm:py-24 border-b border-primary/20">
         <video
@@ -305,47 +302,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-gray-300 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            {[
-              {
-                title: 'Navigation',
-                items: ['Home', 'Shop', 'About Us', 'History']
-              },
-              {
-                title: 'Support',
-                items: ['Contact Us', 'FAQs', 'Shipping', 'Returns']
-              },
-              {
-                title: 'Company',
-                items: ['About', 'Blog', 'Careers', 'Press']
-              },
-              {
-                title: 'Legal',
-                items: ['Privacy', 'Terms', 'Cookies', 'Disclaimer']
-              }
-            ].map((col, idx) => (
-              <div key={idx}>
-                <h4 className="font-semibold text-white mb-4">{col.title}</h4>
-                <ul className="space-y-2">
-                  {col.items.map((item, i) => (
-                    <li key={i}>
-                      <a href="#" className="hover:text-primary transition-colors">
-                        {item}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-gray-700 pt-8 text-center">
-            <p>&copy; 2024 Nature Leaf. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </ProtectedRoute>
   );
 }

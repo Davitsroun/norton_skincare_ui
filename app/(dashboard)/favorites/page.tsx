@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
-import { Navigation } from '@/components/navigation';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockProducts } from '@/lib/mock-data';
+import { mockProducts } from '@/lib/mock-data/index';
 import { Heart, ShoppingCart, Star, ArrowLeft } from 'lucide-react';
 
 export default function FavoritesPage() {
@@ -31,12 +30,7 @@ export default function FavoritesPage() {
   }, [isAuthenticated, isLoading, router]);
 
   if (!isClient || isLoading || isPageLoading) {
-    return (
-      <>
-        <Navigation />
-        <SkeletonLoader />
-      </>
-    );
+    return <SkeletonLoader />;
   }
 
   if (!isAuthenticated) {
@@ -46,12 +40,11 @@ export default function FavoritesPage() {
   const favoriteProducts = mockProducts.filter((p) => favorites.includes(p.id));
 
   return (
-    <>
-      <Navigation />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
+          type="button"
           onClick={() => router.push('/shop')}
-          className="flex items-center gap-2 text-primary hover:text-primary/80 font-semibold mb-8 transition-colors"
+          className="mb-8 flex cursor-pointer items-center gap-2 font-semibold text-primary transition-colors hover:text-primary/80"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Shop
@@ -61,9 +54,9 @@ export default function FavoritesPage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             My Favorites
           </h1>
-          <p className="text-gray-600">
+          {/* <p className="text-gray-600">
             {favoriteProducts.length} product{favoriteProducts.length !== 1 ? 's' : ''} saved
-          </p>
+          </p> */}
         </div>
 
         {favoriteProducts.length === 0 ? (
@@ -74,8 +67,9 @@ export default function FavoritesPage() {
               Start adding products to your favorites to see them here
             </p>
             <button
+              type="button"
               onClick={() => router.push('/shop')}
-              className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="cursor-pointer rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-xl"
             >
               Continue Shopping
             </button>
@@ -104,6 +98,7 @@ export default function FavoritesPage() {
 
                   {/* Favorite Button */}
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setFavorites((prev) =>
@@ -116,7 +111,7 @@ export default function FavoritesPage() {
                         )
                       );
                     }}
-                    className="absolute top-4 right-4 bg-white rounded-full p-2.5 hover:bg-red-100 transition-all shadow-lg"
+                    className="absolute right-4 top-4 cursor-pointer rounded-full bg-white p-2.5 shadow-lg transition-all hover:bg-red-100"
                   >
                     <Heart
                       className="w-5 h-5"
@@ -128,8 +123,9 @@ export default function FavoritesPage() {
                   {/* Quick View Overlay */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
                     <button
+                      type="button"
                       onClick={() => router.push(`/shop/${product.id}`)}
-                      className="bg-primary text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-primary/90 shadow-lg transform -translate-y-2 group-hover:translate-y-0 transition-transform"
+                      className="-translate-y-2 transform cursor-pointer rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-transform group-hover:translate-y-0 hover:bg-primary/90"
                     >
                       View Details
                     </button>
@@ -175,7 +171,10 @@ export default function FavoritesPage() {
                   </div>
 
                   {/* Shop Button */}
-                  <button className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white py-2.5 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                  <button
+                    type="button"
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 py-2.5 font-semibold text-white shadow-md transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-lg"
+                  >
                     <ShoppingCart className="w-4 h-4" />
                     ADD TO CART
                   </button>
@@ -185,6 +184,5 @@ export default function FavoritesPage() {
           </div>
         )}
       </div>
-    </>
   );
 }

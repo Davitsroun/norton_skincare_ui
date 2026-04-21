@@ -1,24 +1,7 @@
 export function SkeletonLoader() {
   return (
     <div className="min-h-screen bg-white animate-pulse">
-      {/* Header/Navigation Skeleton */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="h-8 w-32 bg-gray-300 rounded-lg"></div>
-          <div className="hidden sm:flex gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-4 w-20 bg-gray-300 rounded"></div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-8 w-8 bg-gray-300 rounded-full"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
+      {/* Main content (navbar comes from dashboard layout) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Hero Section Skeleton */}
         <div className="mb-12">

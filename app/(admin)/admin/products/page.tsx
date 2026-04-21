@@ -5,43 +5,11 @@ import { ConfirmationDialog } from '@/components/confirmation-dialog';
 import { useState } from 'react';
 import { Search, Plus, Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-const mockProducts = [
-  {
-    id: 1,
-    name: 'Premium CBD Oil',
-    sku: 'CBD-001',
-    category: 'Oils',
-    price: '$49.99',
-    stock: 150,
-    status: 'Active',
-    image: 'https://images.unsplash.com/photo-1585951237318-9ea5e175b891?w=80&h=80&fit=crop',
-  },
-  {
-    id: 2,
-    name: 'Hemp Tea',
-    sku: 'HEMP-TEA',
-    category: 'Beverages',
-    price: '$19.99',
-    stock: 320,
-    status: 'Active',
-    image: 'https://images.unsplash.com/photo-1597318736231-81ad71381e39?w=80&h=80&fit=crop',
-  },
-  {
-    id: 3,
-    name: 'CBD Capsules',
-    sku: 'CBD-CAP',
-    category: 'Supplements',
-    price: '$39.99',
-    stock: 45,
-    status: 'Low Stock',
-    image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde0e?w=80&h=80&fit=crop',
-  },
-];
+import { mockAdminProducts } from '@/lib/mock-data/index';
 
 export default function AdminProducts() {
   const { toast } = useToast();
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState(mockAdminProducts);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

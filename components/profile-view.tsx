@@ -125,7 +125,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
               <div className="flex flex-col sm:flex-row items-start gap-6 pb-8 border-b border-primary">
                 <button
                   onClick={openImagePopup}
-                  className="relative rounded-full transition hover:scale-105"
+                  className="relative cursor-pointer rounded-full transition hover:scale-105"
                   title="Change profile image"
                   type="button"
                 >
@@ -153,7 +153,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
 
                 <button
                   onClick={() => setIsEditing(!isEditing)}
-                  className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-all"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-6 py-2 font-semibold text-white transition-all hover:bg-primary/90"
                   type="button"
                 >
                   {isEditing ? (
@@ -295,7 +295,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                     <div className="flex gap-3 pt-6 border-t border-gray-200 mt-8">
                       <button
                         onClick={handleSave}
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-all"
+                        className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary/90"
                         type="button"
                       >
                         <Check className="w-5 h-5" />
@@ -332,7 +332,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
         <div className="fixed inset-0 z-[70]">
           <button
             aria-label="Close image popup"
-            className="absolute inset-0 bg-black/30"
+            className="absolute inset-0 cursor-pointer bg-black/30"
             type="button"
             onClick={() => setIsImagePopupOpen(false)}
           />
@@ -341,7 +341,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
               <h3 className="text-lg font-bold text-gray-900">Change Profile Image</h3>
               <button
                 onClick={() => setIsImagePopupOpen(false)}
-                className="rounded-lg p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                className="cursor-pointer rounded-lg p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                 type="button"
               >
                 <X className="h-4 w-4" />
@@ -381,7 +381,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
             >
               <Upload className="h-4 w-4" />
               Upload from computer
@@ -390,14 +390,14 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
             <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => setIsImagePopupOpen(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 type="button"
               >
                 Cancel
               </button>
               <button
                 onClick={saveImage}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
+                className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
                 type="button"
               >
                 Save

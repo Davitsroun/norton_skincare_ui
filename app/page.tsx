@@ -63,9 +63,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div
+      className="flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat px-4 py-8"
+      style={{ backgroundImage: "url('/back_ground.gif')" }}
+    >
+      <div className="flex w-full max-w-5xl overflow-hidden rounded-2xl bg-white/92 shadow-2xl">
       {/* Left Side - Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12">
+      <div className="flex w-full flex-col justify-center bg-white/90 p-8 sm:p-12 md:w-1/2">
         <div className="max-w-md w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -194,7 +198,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Illustration */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 items-center justify-center p-12">
+      <div className="hidden w-1/2 items-center justify-center bg-primary/60 p-12 backdrop-blur-[1px] lg:flex">
         <div className="text-center max-w-sm">
           {/* Circular Illustration with decorative elements */}
           <div className="relative mx-auto mb-12 w-72 h-72 flex items-center justify-center">
@@ -246,6 +250,7 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

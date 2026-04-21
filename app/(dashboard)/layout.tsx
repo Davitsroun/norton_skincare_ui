@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Navigation } from '@/components/navigation';
 
 interface DashboardGroupLayoutProps {
   children: ReactNode;
@@ -7,5 +8,10 @@ interface DashboardGroupLayoutProps {
 export default function DashboardGroupLayout({
   children,
 }: DashboardGroupLayoutProps) {
-  return children;
+  return (
+    <>
+      <Navigation />
+      {children}
+    </>
+  );
 }

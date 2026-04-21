@@ -29,26 +29,29 @@ export function Navigation() {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/home" className="flex items-center gap-2 font-bold text-xl text-primary">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
+          <Link
+            href="/home"
+            className="flex cursor-pointer items-center gap-2 text-xl font-bold text-primary"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white">
               ✓
             </div>
             <span className="hidden sm:inline">Nature Leaf</span>
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden items-center gap-8 md:flex">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`text-sm font-medium transition-colors ${
+                className={`cursor-pointer text-sm font-medium transition-colors ${
                   isActive(item.href)
-                    ? 'text-primary border-b-2 border-primary pb-1'
+                    ? 'border-b-2 border-primary pb-1 text-primary'
                     : 'text-gray-600 hover:text-primary'
                 }`}
                 onClick={() => setIsOpen(false)}
@@ -60,82 +63,85 @@ export function Navigation() {
 
           {/* Right Section */}
           <div className="flex items-center gap-4">
-            {/* Notification Center */}
             <NotificationCenter />
 
-            {/* Favorites Icon */}
             <button
+              type="button"
               onClick={() => router.push('/favorites')}
-              className="text-gray-600 hover:text-primary transition-colors"
+              className="cursor-pointer text-gray-600 transition-colors hover:text-primary"
+              aria-label="Favorites"
             >
-              <Heart className="w-5 h-5" />
+              <Heart className="h-5 w-5" />
             </button>
 
-            {/* Cart Icon */}
             <button
+              type="button"
               onClick={() => router.push('/cart')}
-              className="text-gray-600 hover:text-primary transition-colors relative"
+              className="relative cursor-pointer text-gray-600 transition-colors hover:text-primary"
+              aria-label="Shopping cart"
             >
-              <ShoppingCart className="w-5 h-5" />
+              <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                <span className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
                   {cartCount}
                 </span>
               )}
             </button>
 
-            {/* User Profile & Profile Link */}
-            <div className="hidden sm:flex items-center gap-3 pl-4 border-l border-gray-200">
+            <div className="hidden items-center gap-3 border-l border-gray-200 pl-4 sm:flex">
               <button
+                type="button"
                 onClick={() => router.push('/profile')}
-                className="text-gray-600 hover:text-primary transition-colors"
+                className="cursor-pointer text-gray-600 transition-colors hover:text-primary"
+                aria-label="Profile"
               >
-                <User className="w-5 h-5" />
+                {user?.imageUrl ? (
+                  <img
+                    src={user.imageUrl}
+                    alt={user.firstName || user.username || 'User'}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+                    <User className="h-4 w-4" />
+                  </div>
+                )}
               </button>
-              {user?.imageUrl ? (
-                <img
-                  src={user.imageUrl}
-                  alt={user.firstName || user.username || 'User'}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-                  <User className="h-4 w-4" />
-                </div>
-              )}
+
               <LogoutConfirm
                 renderTrigger={(open) => (
                   <button
                     type="button"
                     onClick={open}
-                    className="text-sm text-gray-600 hover:text-red-600 flex items-center gap-1 transition-colors"
+                    className="flex cursor-pointer items-center gap-1 text-sm text-gray-600 transition-colors hover:text-red-600"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="h-4 w-4" />
                     <span className="hidden sm:inline">Logout</span>
                   </button>
                 )}
               />
             </div>
 
-            {/* Mobile Menu Button */}
             <button
+              type="button"
               onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden text-gray-600 hover:text-primary transition-colors"
+              className="cursor-pointer text-gray-600 transition-colors hover:text-primary md:hidden"
+              aria-label={isOpen ? 'Close menu' : 'Open menu'}
             >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4 space-y-3">
+          <div className="space-y-3 border-t border-gray-200 py-4 md:hidden">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setIsOpen(false)}
-                className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`block cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                   isActive(item.href)
                     ? 'bg-primary text-white'
                     : 'text-gray-600 hover:bg-gray-100'
@@ -149,9 +155,9 @@ export function Navigation() {
                 <button
                   type="button"
                   onClick={open}
-                  className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-2"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="h-4 w-4" />
                   Logout
                 </button>
               )}

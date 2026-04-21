@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Eye, EyeOff, Github, Facebook, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Image from 'next/image';
 import Link from 'next/link';
 import { registerSchema } from '@/lib/validations/auth';
 
@@ -113,38 +114,53 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-100 via-teal-50 to-cyan-100 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex">
-        {/* Left Side - Illustration */}
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-teal-200 via-cyan-100 to-teal-100 items-center justify-center p-12 relative overflow-hidden">
-          {/* Decorative shapes */}
-          <div className="absolute top-10 left-10 w-32 h-32 bg-teal-300 rounded-full opacity-20"></div>
-          <div className="absolute bottom-20 right-10 w-40 h-40 bg-cyan-300 rounded-full opacity-20"></div>
+    <div
+      className="flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat px-4 py-8"
+      style={{ backgroundImage: "url('/back_ground.gif')" }}
+    >
+      <div className="flex w-full max-w-5xl overflow-hidden rounded-2xl bg-white/92 shadow-2xl">
+        {/* Left Side — animated background + illustration SVG */}
+        <div className="relative hidden min-h-[420px] overflow-hidden md:flex md:w-1/2">
+          {/* Base wash */}
+          <div
+            className="absolute inset-0 bg-gradient-to-br from-[#c5eef0] via-teal-100/90 to-cyan-50"
+            aria-hidden
+          />
+          {/* Soft grid */}
+          <div
+            className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(191, 239, 236, 0.4)_1px,transparent_1px),linear-gradient(90deg,rgba(104,178,173,0.35)_1px,transparent_1px)] [background-size:32px_32px]"
+            aria-hidden
+          />
+          {/* Animated blobs */}
+          <div
+            className="register-blob-shift absolute -left-20 top-10 h-72 w-72 rounded-full bg-primary/30 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="register-blob-shift-reverse absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-cyan-300/50 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="register-blob-shift absolute left-1/3 top-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-white/40 blur-2xl"
+            aria-hidden
+          />
 
-          <div className="relative z-10 text-center">
-            <div className="mb-8">
-              <div className="inline-block">
-                <div className="text-6xl mb-6">🎨</div>
-                <p className="text-teal-900 font-semibold text-sm mb-2">
-                  Find 3d Objects, Mockups
-                </p>
-                <p className="text-teal-800 text-sm">
-                  and Illustrations here
-                </p>
-              </div>
-            </div>
-
-            {/* Decorative 3D-like shapes */}
-            <div className="flex gap-4 justify-center items-center mt-12 flex-wrap">
-              <div className="w-16 h-16 bg-pink-300 rounded-lg opacity-60 transform -rotate-12"></div>
-              <div className="w-20 h-20 bg-teal-300 rounded-full opacity-40"></div>
-              <div className="w-16 h-16 bg-cyan-300 rounded-lg opacity-50 transform rotate-12"></div>
+          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-8 py-10">
+            <div className="register-illustration-float relative w-full max-w-lg">
+              <Image
+                src="/register_pic.svg"
+                alt="Illustration for creating your account"
+                width={960}
+                height={700}
+                className="h-auto w-full drop-shadow-[0_20px_50px_rgba(0,0,0,0.12)]"
+                priority
+              />
             </div>
           </div>
         </div>
 
         {/* Right Side - Form */}
-        <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center">
+        <div className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Create Account</h1>
             <p className="text-gray-600 text-sm">Join us today and start your journey</p>

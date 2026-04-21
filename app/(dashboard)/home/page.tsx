@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Navigation } from '@/components/navigation';
 import { ProtectedRoute } from '@/components/protected-route';
-import { mockProducts, testimonials } from '@/lib/mock-data';
+import { SiteFooter } from '@/components/site-footer';
+import { mockProducts, testimonials } from '@/lib/mock-data/index';
 import { Heart, Star, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 
@@ -56,8 +56,6 @@ export default function HomePage() {
 
   return (
     <ProtectedRoute>
-      <Navigation />
-
       {/* Hero Section */}
       <section className="bg-white text-gray-900 py-16 sm:py-24 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -285,54 +283,14 @@ export default function HomePage() {
           </p>
           <Link
             href="/shop"
-            className="inline-block bg-white text-primary px-8 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors shadow-lg"
+            className="inline-block cursor-pointer rounded-xl bg-white px-8 py-3 font-semibold text-primary shadow-lg transition-colors hover:bg-gray-100"
           >
             Shop Sale
           </Link>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            {[
-              {
-                title: 'Navigation',
-                items: ['Home', 'Shop', 'About Us', 'History']
-              },
-              {
-                title: 'Support',
-                items: ['Contact Us', 'FAQs', 'Shipping', 'Returns']
-              },
-              {
-                title: 'Company',
-                items: ['About', 'Blog', 'Careers', 'Press']
-              },
-              {
-                title: 'Legal',
-                items: ['Privacy', 'Terms', 'Cookies', 'Disclaimer']
-              }
-            ].map((col, idx) => (
-              <div key={idx}>
-                <h4 className="font-semibold text-gray-100 mb-3">{col.title}</h4>
-                <ul className="space-y-2">
-                  {col.items.map((item, i) => (
-                    <li key={i}>
-                      <a href="#" className="hover:text-white transition-colors">
-                        {item}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-teal-800 pt-8 text-center">
-            <p>&copy; 2024 Nature Leaf. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </ProtectedRoute>
   );
 }

@@ -11,7 +11,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title, description }: AdminLayoutProps) {
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-white">
       <AdminSidebar />
       <div className="flex-1 flex flex-col ml-64 overflow-hidden">
         <AdminHeader title={title} description={description} />

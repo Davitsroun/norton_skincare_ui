@@ -1,9 +1,8 @@
 'use client';
 
-import { Navigation } from '@/components/navigation';
 import { ProtectedRoute } from '@/components/protected-route';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockOrderHistory } from '@/lib/mock-data';
+import { mockOrderHistory } from '@/lib/mock-data/index';
 import { ChevronDown, Download, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -22,7 +21,6 @@ export default function HistoryPage() {
   if (isPageLoading) {
     return (
       <ProtectedRoute>
-        <Navigation />
         <SkeletonLoader />
       </ProtectedRoute>
     );
@@ -84,8 +82,6 @@ export default function HistoryPage() {
 
   return (
     <ProtectedRoute>
-      <Navigation />
-
       <div className="min-h-screen bg-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}

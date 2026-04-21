@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
-import { Navigation } from '@/components/navigation';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockProducts } from '@/lib/mock-data';
+import { initialProductReviews, mockProducts } from '@/lib/mock-data/index';
 import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown } from 'lucide-react';
 
 export default function ProductDetailPage() {
@@ -21,44 +20,7 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
-  const [reviews, setReviews] = useState([
-    {
-      id: '1',
-      author: 'John Smith',
-      rating: 5,
-      date: '2 weeks ago',
-      text: 'Excellent product! Great quality and fast delivery. Highly recommended!',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-      verified: true,
-    },
-    {
-      id: '2',
-      author: 'Sarah Johnson',
-      rating: 4,
-      date: '1 month ago',
-      text: 'Very good product, met my expectations. Will definitely purchase again.',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-      verified: true,
-    },
-    {
-      id: '3',
-      author: 'Mike Chen',
-      rating: 5,
-      date: '1 month ago',
-      text: 'Amazing! Best purchase I\'ve made this year. Customer service was also great.',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
-      verified: true,
-    },
-    {
-      id: '4',
-      author: 'Emily Davis',
-      rating: 5,
-      date: '2 months ago',
-      text: 'Perfect quality and exactly as described. Shipping was faster than expected!',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-      verified: true,
-    },
-  ]);
+  const [reviews, setReviews] = useState(initialProductReviews);
 
   useEffect(() => {
     setIsClient(true);
@@ -70,12 +32,7 @@ export default function ProductDetailPage() {
   }, [isAuthenticated, isLoading, router]);
 
   if (isPageLoading) {
-    return (
-      <>
-        <Navigation />
-        <SkeletonLoader />
-      </>
-    );
+    return <SkeletonLoader />;
   }
 
   const toggleFavorite = (productId: string) => {
@@ -110,9 +67,7 @@ export default function ProductDetailPage() {
     .slice(0, 4);
 
   return (
-    <>
-      <Navigation />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100">
+    <div className="min-h-screen bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <button
             onClick={() => router.push('/shop')}
@@ -536,6 +491,5 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
-    </>
   );
 }

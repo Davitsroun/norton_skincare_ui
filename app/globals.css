@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.98 0.005 0);
+  --background: oklch(1 0 0);
   --foreground: oklch(0.2 0.02 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.2 0.02 0);
@@ -120,6 +120,73 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-white text-foreground;
   }
+
+  /* Hand pointer on interactive controls (hover feels clickable) */
+  a[href],
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='link'],
+  [role='menuitem']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  summary,
+  select:enabled,
+  label[for],
+  input[type='button']:not(:disabled),
+  input[type='submit']:not(:disabled),
+  input[type='reset']:not(:disabled),
+  input[type='checkbox']:enabled,
+  input[type='radio']:enabled,
+  input[type='file']:enabled,
+  input[type='range']:enabled {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'],
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* Register page — illustration float + soft background motion */
+@keyframes register-illustration-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+.register-illustration-float {
+  animation: register-illustration-float 4.5s ease-in-out infinite;
+}
+
+@keyframes register-blob-shift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.45;
+  }
+  33% {
+    transform: translate(6%, -5%) scale(1.12);
+    opacity: 0.6;
+  }
+  66% {
+    transform: translate(-5%, 8%) scale(0.92);
+    opacity: 0.5;
+  }
+}
+
+.register-blob-shift {
+  animation: register-blob-shift 14s ease-in-out infinite;
+}
+
+.register-blob-shift-reverse {
+  animation: register-blob-shift 18s ease-in-out infinite reverse;
 }

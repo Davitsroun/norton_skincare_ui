@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
-import { Navigation } from '@/components/navigation';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockProducts } from '@/lib/mock-data';
+import { mockProducts, shopCategories, shopSortOptions } from '@/lib/mock-data/index';
 import { Heart, Star, ShoppingCart, ChevronDown, Search } from 'lucide-react';
 
 export default function ShopPage() {
@@ -38,23 +37,8 @@ export default function ShopPage() {
   }, [isAuthenticated, isLoading, router]);
 
   if (isPageLoading) {
-    return (
-      <>
-        <Navigation />
-        <SkeletonLoader />
-      </>
-    );
+    return <SkeletonLoader />;
   }
-
-  const categories = [
-    { id: 'all', label: 'All Products' },
-    { id: 'tinctures', label: 'Tinctures' },
-    { id: 'softgels', label: 'Softgels' },
-    { id: 'gummies', label: 'Gummies' },
-    { id: 'pet-treats', label: 'Pet Treats' },
-    { id: 'oils', label: 'Oils' },
-    { id: 'creams', label: 'Creams' },
-  ];
 
   const toggleFavorite = (productId: string) => {
     setFavorites((prevFavs) =>
@@ -86,16 +70,9 @@ export default function ShopPage() {
     filteredProducts = [...filteredProducts].sort((a, b) => b.rating - a.rating);
   }
 
-  const sortOptions = [
-    { value: 'featured', label: 'Featured' },
-    { value: 'price-low', label: 'Price: Low to High' },
-    { value: 'price-high', label: 'Price: High to Low' },
-    { value: 'rating', label: 'Highest Rated' },
-  ];
-
   if (!isClient || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="mt-4 text-foreground">Loading...</p>
@@ -109,10 +86,7 @@ export default function ShopPage() {
   }
 
   return (
-    <>
-      <Navigation />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ">
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             Our Shop
@@ -143,13 +117,13 @@ export default function ShopPage() {
               className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:border-primary transition-colors"
             >
               <span className="font-medium">
-                {categories.find((c) => c.id === selectedCategory)?.label}
+                {shopCategories.find((c) => c.id === selectedCategory)?.label}
               </span>
               <ChevronDown className={`w-5 h-5 transition-transform ${categoryOpen ? 'rotate-180' : ''}`} />
             </button>
             {categoryOpen && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
-                {categories.map((cat) => (
+                {shopCategories.map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => {
@@ -174,13 +148,13 @@ export default function ShopPage() {
               className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:border-primary transition-colors"
             >
               <span className="font-medium">
-                {sortOptions.find((s) => s.value === sortBy)?.label}
+                {shopSortOptions.find((s) => s.value === sortBy)?.label}
               </span>
               <ChevronDown className={`w-5 h-5 transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
             </button>
             {sortOpen && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
-                {sortOptions.map((option) => (
+                {shopSortOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => {
@@ -312,7 +286,6 @@ export default function ShopPage() {
               ))}
             </div>
         </div>
-      </div>
-    </>
+    </div>
   );
 }

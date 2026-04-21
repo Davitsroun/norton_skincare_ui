@@ -59,8 +59,9 @@ export function NotificationCenter() {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="text-gray-600 hover:text-primary transition-colors relative"
+        className="relative cursor-pointer text-gray-600 transition-colors hover:text-primary"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -74,8 +75,9 @@ export function NotificationCenter() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-40 cursor-pointer"
             onClick={() => setIsOpen(false)}
+            aria-hidden
           />
 
           {/* Notification Center Popup */}
@@ -84,8 +86,9 @@ export function NotificationCenter() {
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">Notification Center</h2>
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="cursor-pointer text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -93,13 +96,13 @@ export function NotificationCenter() {
 
             {/* Filter Tabs */}
             <div className="flex gap-2 px-4 pt-3 border-b border-gray-100">
-              <button className="px-4 py-2 bg-white text-gray-900 font-medium rounded-full border border-gray-200">
+              <button type="button" className="cursor-pointer rounded-full border border-gray-200 bg-white px-4 py-2 font-medium text-gray-900">
                 Today
               </button>
-              <button className="px-4 py-2 text-gray-500 hover:text-gray-700 rounded-full">
+              <button type="button" className="cursor-pointer rounded-full px-4 py-2 text-gray-500 hover:text-gray-700">
                 This Week
               </button>
-              <button className="px-4 py-2 text-gray-500 hover:text-gray-700 rounded-full">
+              <button type="button" className="cursor-pointer rounded-full px-4 py-2 text-gray-500 hover:text-gray-700">
                 Earlier
               </button>
             </div>
@@ -148,11 +151,12 @@ export function NotificationCenter() {
                           </p>
                         </div>
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             removeNotification(notification.id);
                           }}
-                          className="text-gray-400 hover:text-red-500 flex-shrink-0"
+                          className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-red-500"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -167,19 +171,21 @@ export function NotificationCenter() {
             {notifications.length > 0 && (
               <div className="flex gap-2 p-3 border-t border-gray-100 bg-gray-50">
                 <button
+                  type="button"
                   onClick={() => {
                     markAllAsRead();
                   }}
-                  className="flex-1 text-sm text-primary hover:text-primary/80 font-medium"
+                  className="flex-1 cursor-pointer text-sm font-medium text-primary hover:text-primary/80"
                 >
                   Mark all as read
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     clearAll();
                     setIsOpen(false);
                   }}
-                  className="flex-1 text-sm text-red-600 hover:text-red-700 font-medium"
+                  className="flex-1 cursor-pointer text-sm font-medium text-red-600 hover:text-red-700"
                 >
                   Clear all
                 </button>
@@ -193,16 +199,18 @@ export function NotificationCenter() {
       {selectedNotification && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 z-50 cursor-pointer bg-black/50"
             onClick={() => setSelectedNotification(null)}
+            aria-hidden
           />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 max-w-md w-full mx-4">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-900">Notification Details</h3>
               <button
+                type="button"
                 onClick={() => setSelectedNotification(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="cursor-pointer text-gray-400 hover:text-gray-600"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -234,17 +242,19 @@ export function NotificationCenter() {
                 {/* Action Buttons */}
                 <div className="flex gap-3">
                   <button
+                    type="button"
                     onClick={() => setSelectedNotification(null)}
-                    className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-colors"
+                    className="flex-1 cursor-pointer rounded-lg bg-primary px-4 py-2 font-semibold text-white transition-colors hover:bg-primary/90"
                   >
                     Got It
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       removeNotification(selectedNotification);
                       setSelectedNotification(null);
                     }}
-                    className="flex-1 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-colors"
+                    className="flex-1 cursor-pointer rounded-lg border border-red-300 px-4 py-2 font-semibold text-red-600 transition-colors hover:bg-red-50"
                   >
                     Dismiss
                   </button>

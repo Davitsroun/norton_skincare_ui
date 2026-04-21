@@ -7,7 +7,6 @@ export type MockAuthUser = {
   name: string;
   imageUrl?: string;
   roles: string[];
-
 };
 
 export const mockAuthUsers: MockAuthUser[] = [
@@ -17,13 +16,14 @@ export const mockAuthUsers: MockAuthUser[] = [
     password: 'Admin123!',
     name: 'Mock Admin',
     imageUrl: 'https://i.pinimg.com/736x/37/00/76/370076c26e450a99cbe76d2e4f281883.jpg',
-    roles: [ADMIN_ROLE],},
+    roles: [ADMIN_ROLE],
+  },
   {
     id: 'mock-user-1',
     email: 'user@gmail.com',
     password: 'User12345!',
     name: 'Mock User',
     imageUrl: 'https://i.pinimg.com/736x/18/75/cf/1875cf70767758f5f562d5e6c793c077.jpg',
-    roles: [USER_ROLE]
+    roles: [USER_ROLE],
   },
 ];

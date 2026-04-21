@@ -3,7 +3,7 @@ import KeycloakProvider from 'next-auth/providers/keycloak';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import type { JWT } from 'next-auth/jwt';
 import { isAdminRole } from '@/lib/auth/roles';
-import { mockAuthUsers } from '@/lib/auth/mock-users';
+import { mockAuthUsers } from '@/lib/mock-data/index';
 
 type TokenPayload = {
   realm_access?: {
