@@ -74,7 +74,7 @@ export default function CartPage() {
                     {/* Product Details */}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
-                      <p className="text-lg font-bold text-primary mb-3">₹{item.price}</p>
+                      <p className="text-lg font-bold text-primary mb-3">${item.price}</p>
 
                       {/* Quantity Controls */}
                       <div className="flex items-center gap-3">
@@ -99,7 +99,7 @@ export default function CartPage() {
                     {/* Price & Remove */}
                     <div className="text-right flex flex-col justify-between">
                       <p className="font-bold text-gray-900">
-                        ₹{(item.price * item.quantity).toFixed(2)}
+                        ${(item.price * item.quantity).toFixed(2)}
                       </p>
                       <button
                         onClick={() => removeFromCart(item.productId)}
@@ -122,7 +122,7 @@ export default function CartPage() {
                   <div className="space-y-3 pb-6 border-b border-gray-200">
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal</span>
-                      <span>₹{cartTotal.toFixed(2)}</span>
+                      <span>${cartTotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
                       <span>Shipping</span>
@@ -130,7 +130,7 @@ export default function CartPage() {
                     </div>
                     <div className="flex justify-between text-gray-600">
                       <span>Tax</span>
-                      <span>₹{(cartTotal * 0.1).toFixed(2)}</span>
+                      <span>${(cartTotal * 0.1).toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -138,7 +138,7 @@ export default function CartPage() {
                   <div className="py-6 border-b border-gray-200">
                     <div className="flex justify-between text-xl font-bold text-gray-900">
                       <span>Total</span>
-                      <span>₹{(cartTotal * 1.1).toFixed(2)}</span>
+                      <span>${(cartTotal * 1.1).toFixed(2)}</span>
                     </div>
                   </div>
 

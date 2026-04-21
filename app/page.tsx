@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Eye, EyeOff, Github, Apple, Facebook } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
@@ -73,7 +73,7 @@ export default function LoginPage() {
         <div className="max-w-md w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2">
               Welcome back!
             </h1>
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
@@ -148,7 +148,7 @@ export default function LoginPage() {
             <div className="text-right pt-1">
               <Link
                 href="/forgot-password"
-                className="text-gray-700 hover:text-primary text-sm font-medium transition-colors"
+                className="text-red-400  hover:text-red-600 text-sm font-medium transition-colors"
               >
                 Forgot Password?
               </Link>
@@ -158,7 +158,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 rounded-full transition-colors h-auto disabled:opacity-50"
+              className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 rounded-full transition-colors h-auto disabled:opacity-50"
             >
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
@@ -176,14 +176,36 @@ export default function LoginPage() {
 
           {/* Social Login Buttons */}
           <div className="flex gap-3 justify-center">
-            <button className="w-12 h-12 rounded-full bg-gray-900 hover:bg-gray-800 text-white transition-colors flex items-center justify-center">
-              <Github className="w-5 h-5" />
+            <button
+              type="button"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-[#181717] text-white transition-colors hover:bg-black"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
+                <path d="M12 .296c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.384-1.332-1.754-1.332-1.754-1.09-.745.082-.729.082-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.833 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.303-5.467-1.333-5.467-5.93 0-1.31.47-2.38 1.236-3.22-.124-.304-.536-1.526.117-3.176 0 0 1.008-.322 3.3 1.23a11.51 11.51 0 0 1 3.003-.404c1.018.005 2.042.138 3.003.404 2.29-1.552 3.297-1.23 3.297-1.23.655 1.65.243 2.872.12 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.807 5.624-5.48 5.92.43.37.813 1.096.813 2.21 0 1.594-.015 2.878-.015 3.27 0 .321.216.694.825.576C20.565 22.09 24 17.592 24 12.296c0-6.627-5.373-12-12-12" />
+              </svg>
             </button>
-            <button className="w-12 h-12 rounded-full bg-gray-900 hover:bg-gray-800 text-white transition-colors flex items-center justify-center">
-              <Apple className="w-5 h-5" />
-            </button>
-            <button className="w-12 h-12 rounded-full bg-gray-900 hover:bg-gray-800 text-white transition-colors flex items-center justify-center">
-              <Facebook className="w-5 h-5" />
+            <button
+              type="button"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#5f6368] ring-1 ring-gray-300 transition-colors hover:bg-gray-50"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5">
+                <path
+                  fill="#4285F4"
+                  d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.08 3.56-5.15 3.56-8.65z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.12 0-5.77-2.1-6.71-4.92h-4v3.09A12 12 0 0 0 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.29 14.33A7.2 7.2 0 0 1 4.91 12c0-.81.14-1.6.38-2.33V6.58h-4A12 12 0 0 0 0 12c0 1.94.47 3.77 1.29 5.42l4-3.09z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.77c1.76 0 3.35.61 4.6 1.8l3.45-3.45C17.95 1.16 15.24 0 12 0A12 12 0 0 0 1.29 6.58l4 3.09c.94-2.82 3.59-4.9 6.71-4.9z"
+                />
+              </svg>
             </button>
           </div>
 
@@ -198,7 +220,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Illustration */}
-      <div className="hidden w-1/2 items-center justify-center bg-primary/60 p-12 backdrop-blur-[1px] lg:flex">
+      <div className="hidden w-1/2 items-center justify-center bg-primary/50 p-12 backdrop-blur-[1px] lg:flex">
         <div className="text-center max-w-sm">
           {/* Circular Illustration with decorative elements */}
           <div className="relative mx-auto mb-12 w-72 h-72 flex items-center justify-center">

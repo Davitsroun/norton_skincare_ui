@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-const publicAuthPages = new Set(['/', '/register', '/forgot-password']);
+const publicAuthPages = new Set(['/login', '/register', '/forgot-password']);
 const protectedPrefixes = ['/home', '/shop', '/about', '/favorites', '/history', '/cart', '/profile'];
 
 function startsWithAny(pathname: string, prefixes: string[]) {
@@ -11,6 +11,9 @@ function startsWithAny(pathname: string, prefixes: string[]) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
   const token = await getToken({
     req: request,
     secret:
@@ -24,7 +27,7 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/admin')) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
 
     if (!isAdmin) {
@@ -33,7 +36,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (startsWithAny(pathname, protectedPrefixes) && !isLoggedIn) {
-    return NextResponse.redirect(new URL('/', request.url));
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   if (publicAuthPages.has(pathname) && isLoggedIn) {

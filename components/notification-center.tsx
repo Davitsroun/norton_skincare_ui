@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useNotification } from '@/lib/notification-context';
-import { Bell, X, Gift, Package, ShoppingCart, Info } from 'lucide-react';
+import { Bell, X, Gift, Package, ShoppingCart, Info, BellOff } from 'lucide-react';
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
@@ -111,6 +111,7 @@ export function NotificationCenter() {
             <div className="overflow-y-auto flex-1">
               {notifications.length === 0 ? (
                 <div className="flex items-center justify-center h-40 text-gray-500">
+                  <BellOff className="w-5 h-5 text-gray-500" />
                   <p>No notifications</p>
                 </div>
               ) : (

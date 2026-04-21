@@ -76,7 +76,7 @@ export default function HistoryPage() {
     },
     {
       label: 'Total Spent',
-      value: `₹${mockOrderHistory.reduce((sum, o) => sum + o.total, 0)}`,
+      value: `$${mockOrderHistory.reduce((sum, o) => sum + o.total, 0)}`,
     },
   ];
 
@@ -130,7 +130,7 @@ export default function HistoryPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 <Download className="w-4 h-4" />
                 Export
@@ -139,7 +139,7 @@ export default function HistoryPage() {
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -186,7 +186,7 @@ export default function HistoryPage() {
 
                   <div className="text-right mr-4">
                     <p className="text-lg font-bold text-gray-900">
-                      ₹{order.total}
+                      ${order.total}
                     </p>
                     {order.trackingNumber && (
                       <p className="text-xs text-gray-600 mt-1">
@@ -228,11 +228,11 @@ export default function HistoryPage() {
                               Quantity: {item.quantity}
                             </p>
                             <p className="text-sm text-gray-600">
-                              Price: ₹{item.price} each
+                              Price: ${item.price} each
                             </p>
                           </div>
                           <p className="font-semibold text-gray-900">
-                            ₹{item.price * item.quantity}
+                            ${item.price * item.quantity}
                           </p>
                         </div>
                       ))}
@@ -242,19 +242,19 @@ export default function HistoryPage() {
                     <div className="border-t border-gray-200 pt-4 mb-6 space-y-2">
                       <div className="flex justify-between text-gray-700">
                         <span>Subtotal</span>
-                        <span>₹{order.total * 0.9}</span>
+                        <span>${order.total * 0.9}</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
                         <span>Shipping</span>
-                        <span>₹50</span>
+                        <span>$50</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
                         <span>Tax</span>
-                        <span>₹{(order.total * 0.18).toFixed(2)}</span>
+                        <span>${(order.total * 0.18).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
                         <span>Total</span>
-                        <span>₹{order.total}</span>
+                        <span>${order.total}</span>
                       </div>
                     </div>
 

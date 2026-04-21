@@ -41,14 +41,14 @@ export default function FavoritesPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <button
+        {/* <button
           type="button"
           onClick={() => router.push('/shop')}
           className="mb-8 flex cursor-pointer items-center gap-2 font-semibold text-primary transition-colors hover:text-primary/80"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Shop
-        </button>
+        </button> */}
 
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
@@ -161,11 +161,11 @@ export default function FavoritesPage() {
                   {/* Price */}
                   <div className="mb-4 flex items-baseline gap-2">
                     <span className="text-lg font-bold text-gray-900">
-                      ₹{product.price}
+                      ${product.price}
                     </span>
                     {product.originalPrice && (
                       <span className="text-sm text-gray-500 line-through">
-                        ₹{product.originalPrice}
+                        ${product.originalPrice}
                       </span>
                     )}
                   </div>

@@ -54,6 +54,7 @@ export default function HomePage() {
 
   const featuredProducts = mockProducts.slice(0, 4);
 
+
   return (
     <ProtectedRoute>
       {/* Hero Section */}
@@ -205,11 +206,11 @@ export default function HomePage() {
                   {/* Price */}
                   <div className="mb-3">
                     <span className="text-lg font-bold text-gray-900">
-                      ₹{product.price}
+                      ${product.price}
                     </span>
                     {product.originalPrice && (
                       <span className="text-sm text-gray-500 line-through ml-2">
-                        ₹{product.originalPrice}
+                        ${product.originalPrice}
                       </span>
                     )}
                   </div>

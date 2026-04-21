@@ -126,11 +126,11 @@ export default function ProductDetailPage() {
               <div className="mb-7 pb-7 border-b border-gray-200">
                 <div className="flex items-baseline gap-3">
                   <span className="text-4xl font-bold text-gray-900">
-                    ₹{product.price}
+                    ${product.price}
                   </span>
                   {product.originalPrice && (
                     <span className="text-xl text-gray-500 line-through">
-                      ₹{product.originalPrice}
+                      ${product.originalPrice}
                     </span>
                   )}
                 </div>
@@ -232,7 +232,7 @@ export default function ProductDetailPage() {
                   <ul className="text-gray-700 text-sm pb-4 space-y-2">
                     <li>🌿 Premium quality product</li>
                     <li>✓ Sustainable sourcing</li>
-                    <li>✓ Fast & free shipping on orders over ₹500</li>
+                    <li>✓ Fast & free shipping on orders over $500</li>
                     <li>✓ 30-day money back guarantee</li>
                   </ul>
                 </details>
@@ -321,7 +321,7 @@ export default function ProductDetailPage() {
                     {/* Price */}
                     <div className="mb-3 flex items-baseline gap-2">
                       <span className="text-lg font-bold text-gray-900">
-                        ₹{relatedProduct.price}
+                        ${relatedProduct.price}
                       </span>
                     </div>
 

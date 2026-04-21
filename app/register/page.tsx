@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Eye, EyeOff, Github, Facebook, Upload, X } from 'lucide-react';
+import { Eye, EyeOff, Github, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
@@ -17,6 +17,7 @@ export default function RegisterPage() {
     firstName: '',
     lastName: '',
     password: '',
+    confirmPassword: '',
     imageUrl: '',
   });
   const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -76,10 +77,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = registerSchema.safeParse({
-      ...formData,
-      confirmPassword: formData.password,
-    });
+    const result = registerSchema.safeParse(formData);
 
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors;
@@ -89,6 +87,7 @@ export default function RegisterPage() {
         firstName: fieldErrors.firstName?.[0] ?? '',
         lastName: fieldErrors.lastName?.[0] ?? '',
         password: fieldErrors.password?.[0] ?? '',
+        confirmPassword: fieldErrors.confirmPassword?.[0] ?? '',
         imageUrl: fieldErrors.imageUrl?.[0] ?? '',
       });
       return;
@@ -96,7 +95,14 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const success = await register(formData);
+      const success = await register({
+        username: formData.username,
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        password: formData.password,
+        imageUrl: formData.imageUrl,
+      });
       if (success) {
         router.push('/home');
       } else {
@@ -128,7 +134,7 @@ export default function RegisterPage() {
           />
           {/* Soft grid */}
           <div
-            className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(191, 239, 236, 0.4)_1px,transparent_1px),linear-gradient(90deg,rgba(104,178,173,0.35)_1px,transparent_1px)] [background-size:32px_32px]"
+            className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(201, 207, 207, 0.4)_1px,transparent_1px),linear-gradient(90deg,rgba(159, 187, 185, 0.35)_1px,transparent_1px)] [background-size:32px_32px]"
             aria-hidden
           />
           {/* Animated blobs */}
@@ -162,19 +168,42 @@ export default function RegisterPage() {
         {/* Right Side - Form */}
         <div className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Create Account</h1>
+            <h1 className="text-4xl font-bold text-primary mb-2">Create Account</h1>
             <p className="text-gray-600 text-sm">Join us today and start your journey</p>
           </div>
 
           {/* Social Login */}
           <div className="flex gap-3 mb-6">
-            <button className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm">
+            <button
+              type="button"
+              className="flex flex-1 items-center text-bold justify-center gap-2 rounded-lg bg-[#181717] py-2.5 font-medium text-white transition-colors hover:bg-black"
+            >
               <Github className="w-4 h-4" />
-              Google
+              Github
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm">
-              <Facebook className="w-4 h-4" />
-              Facebook
+            <button
+              type="button"
+              className="flex flex-1 text-bold items-center justify-center gap-2 rounded-lg bg-white py-2.5 font-medium text-[#5f6368] ring-1 ring-gray-300 transition-colors hover:bg-primary hover:text-white"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
+                <path
+                  fill="#4285F4"
+                  d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.08 3.56-5.15 3.56-8.65z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.12 0-5.77-2.1-6.71-4.92h-4v3.09A12 12 0 0 0 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.29 14.33A7.2 7.2 0 0 1 4.91 12c0-.81.14-1.6.38-2.33V6.58h-4A12 12 0 0 0 0 12c0 1.94.47 3.77 1.29 5.42l4-3.09z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.77c1.76 0 3.35.61 4.6 1.8l3.45-3.45C17.95 1.16 15.24 0 12 0A12 12 0 0 0 1.29 6.58l4 3.09c.94-2.82 3.59-4.9 6.71-4.9z"
+                />
+              </svg>
+              Google
             </button>
           </div>
 
@@ -302,6 +331,25 @@ export default function RegisterPage() {
               </div>
               {errors.password && (
                 <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className={`w-full rounded-lg border-2 px-4 py-2.5 text-sm transition-colors placeholder:text-gray-400 ${
+                  errors.confirmPassword
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-300 focus:border-primary'
+                }`}
+              />
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
               )}
             </div>
 
