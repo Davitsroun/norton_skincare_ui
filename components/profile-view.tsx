@@ -106,7 +106,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
 
   const outerClass =
     variant === 'standalone'
-      ? 'min-h-screen bg-white py-12'
+      ? 'min-h-screen bg-[#f4fbfa] bg-cover bg-center bg-no-repeat py-12'
       : 'pb-2';
 
   const innerClass =
@@ -116,7 +116,14 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
 
   return (
     <>
-      <div className={outerClass}>
+      <div
+        className={outerClass}
+        style={
+          variant === 'standalone'
+            ? { backgroundImage: "url('/profile_background.svg')" }
+            : undefined
+        }
+      >
         <div className={innerClass}>
           <div className="bg-white border-t-4 border-primary rounded-lg shadow-lg overflow-hidden mb-8">
             <div className="h-2 bg-primary" />

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Eye, EyeOff, Github, Upload, X } from 'lucide-react';
+import { Eye, EyeOff, Github, UserRound, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
@@ -121,7 +121,7 @@ export default function RegisterPage() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat px-4 py-8"
+      className="flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat px-4 py-12 md:py-16"
       style={{ backgroundImage: "url('/back_ground.gif')" }}
     >
       <div className="flex w-full max-w-5xl overflow-hidden rounded-2xl bg-white/92 shadow-2xl">
@@ -151,7 +151,30 @@ export default function RegisterPage() {
             aria-hidden
           />
 
-          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-8 py-10">
+          <div className="relative z-10 flex h-full w-full flex-col justify-center gap-6 px-5 py-1">
+            <div className="w-full max-w-lg rounded-2xl border border-white/70 bg-white/35 p-5 shadow-[0_12px_40px_-12px_rgba(15,118,110,0.25)] backdrop-blur-[2px]">
+              <span className="inline-block rounded-full bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary shadow-sm">
+                Nature Leaf
+              </span>
+              <h2 className="mt-3 text-2xl font-extrabold leading-snug tracking-tight text-gray-900 sm:text-[1.6rem]">
+                Your{' '}
+                <span className="bg-gradient-to-r from-primary via-teal-600 to-cyan-500 bg-clip-text text-transparent">
+                  glow
+                </span>{' '}
+                starts here
+              </h2>
+              <p className="mt-2 text-sm text-gray-600/95">
+                Favorites, orders & checkout—one quick sign-up.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                  Free
+                </span>
+                <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-teal-800">
+                  Secure
+                </span>
+              </div>
+            </div>
             <div className="register-illustration-float relative w-full max-w-lg">
               <Image
                 src="/register_pic.svg"
@@ -166,7 +189,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Right Side - Form */}
-        <div className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
+        <div className="flex w-full flex-col justify-center px-8 py-12 sm:px-12 sm:py-16 md:w-1/2">
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-primary mb-2">Create Account</h1>
             <p className="text-gray-600 text-sm">Join us today and start your journey</p>
@@ -321,6 +344,7 @@ export default function RegisterPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide passwords' : 'Show passwords'}
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -336,58 +360,88 @@ export default function RegisterPage() {
 
             {/* Confirm Password */}
             <div>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                name="confirmPassword"
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className={`w-full rounded-lg border-2 px-4 py-2.5 text-sm transition-colors placeholder:text-gray-400 ${
-                  errors.confirmPassword
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-300 focus:border-primary'
-                }`}
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  placeholder="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`w-full rounded-lg border-2 px-4 py-2.5 pr-12 text-sm transition-colors placeholder:text-gray-400 ${
+                    errors.confirmPassword
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:border-primary'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide passwords' : 'Show passwords'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
               )}
             </div>
 
-            {/* Profile Image Upload */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">Profile Picture (Optional)</label>
-              {profileImagePreview ? (
-                <div className="relative mb-4">
-                  <img
-                    src={profileImagePreview}
-                    alt="Profile Preview"
-                    className="w-full h-40 object-cover rounded-lg border-2 border-primary"
-                  />
-                  <button
-                    type="button"
-                    onClick={removeImage}
-                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors"
+            {/* Profile photo — compact avatar row */}
+            <div className="rounded-lg border border-gray-200 bg-gradient-to-r from-slate-50/90 to-white px-2.5 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
+              <div className="flex items-center gap-2.5">
+                <div className="relative shrink-0">
+                  <label
+                    htmlFor="register-profile-photo"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary/15 to-cyan-500/10 ring-2 ring-white shadow-sm transition hover:ring-primary/40"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-all">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <p className="text-sm font-semibold text-gray-700">Click to upload photo</p>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF (Max 5MB)</p>
-                  </div>
+                    {profileImagePreview ? (
+                      <img
+                        src={profileImagePreview}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <UserRound className="h-4 w-4 text-primary/70" strokeWidth={1.75} />
+                    )}
+                  </label>
                   <input
+                    id="register-profile-photo"
                     type="file"
                     accept="image/*"
                     onChange={handleImageUpload}
-                    className="hidden"
+                    className="sr-only"
                   />
-                </label>
-              )}
+                  {profileImagePreview && (
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-900/85 text-white shadow hover:bg-gray-900"
+                      aria-label="Remove photo"
+                    >
+                      <X className="h-2.5 w-2.5" strokeWidth={2.5} />
+                    </button>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-gray-800">Profile photo</p>
+                  <p className="text-[11px] leading-snug text-gray-500">
+                    Optional · JPG or PNG · max 5MB
+                  </p>
+                  <label
+                    htmlFor="register-profile-photo"
+                    className="mt-0.5 inline-block cursor-pointer text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    {profileImagePreview ? 'Change' : 'Choose file'}
+                  </label>
+                </div>
+              </div>
               {errors.image && (
-                <p className="text-red-500 text-xs mt-2">{errors.image}</p>
+                <p className="text-red-500 text-xs mt-1.5 pl-[2.75rem]">{errors.image}</p>
               )}
             </div>
 
