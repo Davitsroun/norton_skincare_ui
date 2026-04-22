@@ -20,11 +20,17 @@ export default function ShopPage() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 8;
 
   useEffect(() => {
     setIsClient(true);
     if (!isLoading && !isAuthenticated) {
       router.push('/');
+    }
+    const storedFavorites = localStorage.getItem('favorites');
+    if (storedFavorites) {
+      setFavorites(JSON.parse(storedFavorites));
     }
     const search = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('search')
@@ -36,16 +42,21 @@ export default function ShopPage() {
     return () => clearTimeout(timer);
   }, [isAuthenticated, isLoading, router]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, sortBy, searchQuery]);
+
   if (isPageLoading) {
     return <SkeletonLoader />;
   }
 
   const toggleFavorite = (productId: string) => {
-    setFavorites((prevFavs) =>
-      prevFavs.includes(productId)
-        ? prevFavs.filter((id) => id !== productId)
-        : [...prevFavs, productId]
-    );
+    const nextFavorites = favorites.includes(productId)
+      ? favorites.filter((id) => id !== productId)
+      : [...favorites, productId];
+    setFavorites(nextFavorites);
+    localStorage.setItem('favorites', JSON.stringify(nextFavorites));
+    window.dispatchEvent(new Event('favorites-updated'));
   };
 
   let filteredProducts = mockProducts;
@@ -69,6 +80,12 @@ export default function ShopPage() {
   } else if (sortBy === 'rating') {
     filteredProducts = [...filteredProducts].sort((a, b) => b.rating - a.rating);
   }
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * productsPerPage;
+  const endIndex = startIndex + productsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
   if (!isClient || isLoading) {
     return (
@@ -174,7 +191,7 @@ export default function ShopPage() {
 
           <div className="flex-1"></div>
           <span className="text-sm text-gray-600 hidden sm:inline">
-            Showing {filteredProducts.length} products
+            Showing {filteredProducts.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
           </span>
         </div>
 
@@ -182,7 +199,7 @@ export default function ShopPage() {
           {/* Main Content */}
             {/* Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {filteredProducts.map((product) => (
+              {paginatedProducts.map((product) => (
                 <div
                   key={product.id}
                   className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 hover:border-primary/30"
@@ -212,9 +229,10 @@ export default function ShopPage() {
                       className="absolute top-4 right-4 bg-white rounded-full p-2.5 hover:bg-primary hover:text-white transition-all shadow-lg"
                     >
                       <Heart
-                        className="w-5 h-5"
+                        className={`w-5 h-5 ${
+                          favorites.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'
+                        }`}
                         fill={favorites.includes(product.id) ? 'currentColor' : 'none'}
-                        color={favorites.includes(product.id) ? '#ef4444' : 'currentColor'}
                       />
                     </button>
 
@@ -285,6 +303,42 @@ export default function ShopPage() {
                 </div>
               ))}
             </div>
+            {totalPages > 1 && (
+              <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`h-10 w-10 rounded-lg text-sm font-semibold transition-colors ${
+                      safeCurrentPage === page
+                        ? 'bg-primary text-white'
+                        : 'border border-gray-300 text-gray-700 hover:border-primary hover:text-primary'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
         </div>
     </div>
   );

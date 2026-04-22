@@ -31,7 +31,10 @@ export default function AdminUsers() {
     });
   };
 
-  const handleChangeRole = (userId: number, newRole: string) => {
+  const handleChangeRole = (
+    userId: number,
+    newRole: (typeof users)[number]['role']
+  ) => {
     const user = users.find(u => u.id === userId);
     if (user && user.role !== newRole) {
       setUsers(users.map(u =>
@@ -124,7 +127,9 @@ export default function AdminUsers() {
                     <td className="px-6 py-4">
                       <select
                         value={user.role}
-                        onChange={(e) => handleChangeRole(user.id, e.target.value)}
+                        onChange={(e) =>
+                          handleChangeRole(user.id, e.target.value as (typeof users)[number]['role'])
+                        }
                         className="flex items-center gap-2 text-gray-700 bg-transparent border border-gray-300 rounded-lg px-2 py-1 cursor-pointer text-sm"
                       >
                         <option value="Customer">Customer</option>

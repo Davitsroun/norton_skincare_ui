@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, X } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function CartPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -13,6 +20,7 @@ export default function CartPage() {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isKhqrOpen, setIsKhqrOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -30,6 +38,12 @@ export default function CartPage() {
   if (!isAuthenticated) {
     return null;
   }
+
+  const handleAlreadyPaid = () => {
+    setIsKhqrOpen(false);
+    clearCart();
+    router.push('/history');
+  };
 
   return (
     <div className="min-h-screen bg-white py-12">
@@ -144,7 +158,10 @@ export default function CartPage() {
 
                   {/* Buttons */}
                   <div className="space-y-3 pt-6">
-                    <button className="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl">
+                    <button
+                      onClick={() => setIsKhqrOpen(true)}
+                      className="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+                    >
                       Proceed to Checkout
                     </button>
                     <button
@@ -165,6 +182,49 @@ export default function CartPage() {
             </div>
           )}
         </div>
+
+        <Dialog open={isKhqrOpen} onOpenChange={setIsKhqrOpen}>
+          <DialogContent showCloseButton={false} className="sm:max-w-md">
+            <button
+              onClick={() => setIsKhqrOpen(false)}
+              className="absolute top-4 right-4 rounded-md p-1.5 text-red-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:text-red-500 hover:shadow-md"
+              aria-label="Close payment popup"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <DialogHeader>
+              <DialogTitle className="text-center">KHQR Payment</DialogTitle>
+              <DialogDescription className="text-center">
+                Scan this mock QR with your banking app to complete checkout.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-xl border-4 border-gray-900 bg-white p-4 shadow-sm">
+                <div className="relative h-full w-full overflow-hidden rounded-md border border-gray-300 bg-white">
+                  <div className="absolute inset-0 bg-[radial-gradient(#111_1.5px,transparent_1.5px)] bg-[size:10px_10px] opacity-25" />
+                  <div className="absolute left-3 top-3 h-10 w-10 rounded-sm border-4 border-black bg-white" />
+                  <div className="absolute right-3 top-3 h-10 w-10 rounded-sm border-4 border-black bg-white" />
+                  <div className="absolute bottom-3 left-3 h-10 w-10 rounded-sm border-4 border-black bg-white" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="rounded bg-black px-2 py-1 text-xs font-bold text-white tracking-wider">
+                      KHQR MOCK
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={handleAlreadyPaid}
+                  className="w-full rounded-xl bg-primary py-2.5 font-semibold text-white transition-all hover:bg-primary/90"
+                >
+                  Already Pay
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
   );
 }

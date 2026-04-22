@@ -14,6 +14,10 @@ export default function HomePage() {
 
   useEffect(() => {
     setIsMounted(true);
+    const storedFavorites = localStorage.getItem('favorites');
+    if (storedFavorites) {
+      setFavorites(JSON.parse(storedFavorites));
+    }
     let observer: IntersectionObserver | null = null;
     
     // Small delay to ensure DOM is ready
@@ -45,11 +49,12 @@ export default function HomePage() {
   }, []);
 
   const toggleFavorite = (productId: string) => {
-    setFavorites((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
-    );
+    const nextFavorites = favorites.includes(productId)
+      ? favorites.filter((id) => id !== productId)
+      : [...favorites, productId];
+    setFavorites(nextFavorites);
+    localStorage.setItem('favorites', JSON.stringify(nextFavorites));
+    window.dispatchEvent(new Event('favorites-updated'));
   };
 
   const featuredProducts = mockProducts.slice(0, 4);
@@ -165,9 +170,10 @@ export default function HomePage() {
                     className="absolute top-3 right-3 bg-white rounded-full p-2 hover:bg-gray-100 transition-colors shadow-lg"
                   >
                     <Heart
-                      className="w-5 h-5"
+                      className={`w-5 h-5 ${
+                        favorites.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'
+                      }`}
                       fill={favorites.includes(product.id) ? 'currentColor' : 'none'}
-                      color={favorites.includes(product.id) ? '#ef4444' : '#9ca3af'}
                     />
                   </button>
 

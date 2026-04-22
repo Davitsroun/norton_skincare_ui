@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
@@ -11,6 +11,7 @@ import { LogoutConfirm } from './logout-confirm';
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
+  const [favoriteCount, setFavoriteCount] = useState(0);
   const { user, isAuthenticated } = useAuth();
   const { cartCount } = useCart();
   const router = useRouter();
@@ -23,6 +24,33 @@ export function Navigation() {
     { href: '/favorites', label: 'Favorites' },
     { href: '/history', label: 'History' },
   ];
+
+  useEffect(() => {
+    const refreshFavoriteCount = () => {
+      const storedFavorites = localStorage.getItem('favorites');
+      if (!storedFavorites) {
+        setFavoriteCount(0);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(storedFavorites);
+        setFavoriteCount(Array.isArray(parsed) ? parsed.length : 0);
+      } catch {
+        setFavoriteCount(0);
+      }
+    };
+
+    refreshFavoriteCount();
+    window.addEventListener('storage', refreshFavoriteCount);
+    window.addEventListener('focus', refreshFavoriteCount);
+    window.addEventListener('favorites-updated', refreshFavoriteCount);
+
+    return () => {
+      window.removeEventListener('storage', refreshFavoriteCount);
+      window.removeEventListener('focus', refreshFavoriteCount);
+      window.removeEventListener('favorites-updated', refreshFavoriteCount);
+    };
+  }, [pathname]);
 
   if (!isAuthenticated) return null;
 
@@ -68,10 +96,21 @@ export function Navigation() {
             <button
               type="button"
               onClick={() => router.push('/favorites')}
-              className="cursor-pointer text-gray-600 transition-colors hover:text-primary"
+              className={`relative cursor-pointer transition-colors ${
+                favoriteCount > 0 || pathname === '/favorites'
+                  ? 'text-red-500 hover:text-red-600'
+                  : 'text-gray-600 hover:text-primary'
+              }`}
               aria-label="Favorites"
             >
-              <Heart className="h-5 w-5" />
+              <Heart
+                className={`h-5 w-5 ${favoriteCount > 0 || pathname === '/favorites' ? 'fill-current' : ''}`}
+              />
+              {favoriteCount > 0 && (
+                <span className="absolute right-0 top-0 flex h-5 w-5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {favoriteCount}
+                </span>
+              )}
             </button>
 
             <button

@@ -6,7 +6,7 @@ import { ProfileView } from '@/components/profile-view';
 export default function AdminProfilePage() {
   return (
     <AdminPageShell
-      title="My Profile"
+      title="Admin Profile"
       description="View and edit your profile."
     >
       <ProfileView variant="embedded" />

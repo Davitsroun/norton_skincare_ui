@@ -54,9 +54,11 @@ export default function FavoritesPage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             My Favorites
           </h1>
-          {/* <p className="text-gray-600">
-            {favoriteProducts.length} product{favoriteProducts.length !== 1 ? 's' : ''} saved
-          </p> */}
+          {favoriteProducts.length > 0 && (
+            <p className="text-sm font-semibold text-gray-600">
+              {favoriteProducts.length} item{favoriteProducts.length > 1 ? 's' : ''} in box
+            </p>
+          )}
         </div>
 
         {favoriteProducts.length === 0 ? (
@@ -75,7 +77,8 @@ export default function FavoritesPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50/40 p-4 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {favoriteProducts.map((product) => (
               <div
                 key={product.id}
@@ -101,22 +104,15 @@ export default function FavoritesPage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setFavorites((prev) =>
-                        prev.filter((id) => id !== product.id)
-                      );
-                      localStorage.setItem(
-                        'favorites',
-                        JSON.stringify(
-                          favorites.filter((id) => id !== product.id)
-                        )
-                      );
+                      const nextFavorites = favorites.filter((id) => id !== product.id);
+                      setFavorites(nextFavorites);
+                      localStorage.setItem('favorites', JSON.stringify(nextFavorites));
+                      window.dispatchEvent(new Event('favorites-updated'));
                     }}
                     className="absolute right-4 top-4 cursor-pointer rounded-full bg-white p-2.5 shadow-lg transition-all hover:bg-red-100"
                   >
                     <Heart
-                      className="w-5 h-5"
-                      fill="currentColor"
-                      color="#ef4444"
+                      className="w-5 h-5 fill-red-500 text-red-500"
                     />
                   </button>
 
@@ -181,6 +177,7 @@ export default function FavoritesPage() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         )}
       </div>

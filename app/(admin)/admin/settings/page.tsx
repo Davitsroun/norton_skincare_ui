@@ -17,8 +17,8 @@ export default function AdminSettings() {
 
   const tabs = [
     { id: 'general', label: 'General', icon: <Globe className="w-5 h-5" /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-5 h-5" /> },
-    { id: 'appearance', label: 'Appearance', icon: <Palette className="w-5 h-5" /> },
+    // { id: 'notifications', label: 'Notifications', icon: <Bell className="w-5 h-5" /> },
+    // { id: 'appearance', label: 'Appearance', icon: <Palette className="w-5 h-5" /> },
     { id: 'security', label: 'Security', icon: <Lock className="w-5 h-5" /> },
   ];
 
@@ -44,7 +44,7 @@ export default function AdminSettings() {
 
         {/* General Settings */}
         {activeTab === 'general' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm max-w-2xl">
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm max-w-2xl mx-auto ">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Store Information</h2>
 
             <div className="space-y-6">
@@ -130,7 +130,7 @@ export default function AdminSettings() {
         )}
 
         {/* Notifications Settings */}
-        {activeTab === 'notifications' && (
+        {/* {activeTab === 'notifications' && (
           <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm max-w-2xl">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Notification Preferences</h2>
 
@@ -151,10 +151,10 @@ export default function AdminSettings() {
               ))}
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Appearance Settings */}
-        {activeTab === 'appearance' && (
+        {/* {activeTab === 'appearance' && (
           <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm max-w-2xl">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Appearance</h2>
 
@@ -196,20 +196,16 @@ export default function AdminSettings() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Security Settings */}
         {activeTab === 'security' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm max-w-2xl">
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm max-w-2xl  mx-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Security</h2>
 
             <div className="space-y-4">
               <button className="w-full px-6 py-3 border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-semibold rounded-lg transition-all">
                 Change Password
-              </button>
-
-              <button className="w-full px-6 py-3 border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-semibold rounded-lg transition-all">
-                Enable Two-Factor Authentication
               </button>
 
               <div className="border-t border-gray-200 pt-6 mt-6">

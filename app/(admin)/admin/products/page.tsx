@@ -12,9 +12,18 @@ export default function AdminProducts() {
   const [products, setProducts] = useState(mockAdminProducts);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [productToDelete, setProductToDelete] = useState<number | null>(null);
+  const [productToEdit, setProductToEdit] = useState<number | null>(null);
+  const [productToRestock, setProductToRestock] = useState<number | null>(null);
   const [newProduct, setNewProduct] = useState({ name: '', sku: '', category: '', price: '', stock: 0 });
+  const [editProduct, setEditProduct] = useState({ name: '', sku: '', category: '', price: '' });
+  const [stockToAdd, setStockToAdd] = useState(0);
+
+  const getStatusByStock = (stock: number): (typeof products)[number]['status'] =>
+    stock > 50 ? 'Active' : 'Low Stock';
 
   const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -23,14 +32,14 @@ export default function AdminProducts() {
 
   const handleAddProduct = () => {
     if (newProduct.name && newProduct.sku) {
-      const product = {
+      const product: (typeof products)[number] = {
         id: Math.max(...products.map(p => p.id), 0) + 1,
         name: newProduct.name,
         sku: newProduct.sku,
         category: newProduct.category || 'General',
         price: newProduct.price || '$0.00',
         stock: newProduct.stock,
-        status: 'Active',
+        status: getStatusByStock(newProduct.stock),
         image: 'https://images.unsplash.com/photo-1585951237318-9ea5e175b891?w=80&h=80&fit=crop',
       };
       setProducts([...products, product]);
@@ -41,6 +50,72 @@ export default function AdminProducts() {
       setNewProduct({ name: '', sku: '', category: '', price: '', stock: 0 });
       setShowAddModal(false);
     }
+  };
+
+  const handleOpenEditModal = (productId: number) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+    setProductToEdit(productId);
+    setEditProduct({
+      name: product.name,
+      sku: product.sku,
+      category: product.category,
+      price: product.price,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditProduct = () => {
+    if (!productToEdit || !editProduct.name || !editProduct.sku) return;
+    setProducts(
+      products.map((p) =>
+        p.id === productToEdit
+          ? {
+              ...p,
+              name: editProduct.name,
+              sku: editProduct.sku,
+              category: editProduct.category || 'General',
+              price: editProduct.price || '$0.00',
+            }
+          : p
+      )
+    );
+    toast({
+      title: 'Product Updated',
+      description: `${editProduct.name} information has been updated.`,
+    });
+    setShowEditModal(false);
+    setProductToEdit(null);
+  };
+
+  const handleOpenStockModal = (productId: number) => {
+    setProductToRestock(productId);
+    setStockToAdd(0);
+    setShowStockModal(true);
+  };
+
+  const handleAddStock = () => {
+    if (!productToRestock || stockToAdd <= 0) return;
+    let updatedProductName = '';
+    setProducts(
+      products.map((p) => {
+        if (p.id !== productToRestock) return p;
+        updatedProductName = p.name;
+        const updatedStock = p.stock + stockToAdd;
+        return {
+          ...p,
+          stock: updatedStock,
+          status: getStatusByStock(updatedStock),
+        };
+      })
+    );
+    toast({
+      title: 'Stock Added',
+      description: `${stockToAdd} units added to ${updatedProductName}.`,
+    });
+    setShowStockModal(false);
+    setProductToRestock(null);
+    setStockToAdd(0);
   };
 
   const handleDeleteProduct = (productId: number) => {
@@ -138,8 +213,19 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                        <button
+                          onClick={() => handleOpenEditModal(product.id)}
+                          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                          title="Edit Product Info"
+                        >
                           <Edit2 className="w-4 h-4 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenStockModal(product.id)}
+                          className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                          title="Add Stock"
+                        >
+                          + Stock
                         </button>
                         <button 
                           onClick={() => handleDeleteProduct(product.id)}
@@ -147,9 +233,9 @@ export default function AdminProducts() {
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
-                        <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                        {/* <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
                           <MoreVertical className="w-4 h-4 text-gray-600" />
-                        </button>
+                        </button> */}
                       </div>
                     </td>
                   </tr>
@@ -215,7 +301,9 @@ export default function AdminProducts() {
                   type="number"
                   placeholder="Stock"
                   value={newProduct.stock}
-                  onChange={(e) => setNewProduct({ ...newProduct, stock: parseInt(e.target.value) })}
+                  onChange={(e) =>
+                    setNewProduct({ ...newProduct, stock: Number.parseInt(e.target.value, 10) || 0 })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
@@ -231,6 +319,99 @@ export default function AdminProducts() {
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
                 >
                   Add Product
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Product Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-gray-900">Edit Product Info</h3>
+                <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">X</button>
+              </div>
+              <div className="space-y-4 p-6">
+                <input
+                  type="text"
+                  placeholder="Product Name"
+                  value={editProduct.name}
+                  onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  type="text"
+                  placeholder="SKU"
+                  value={editProduct.sku}
+                  onChange={(e) => setEditProduct({ ...editProduct, sku: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  type="text"
+                  placeholder="Category"
+                  value={editProduct.category}
+                  onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  type="text"
+                  placeholder="Price"
+                  value={editProduct.price}
+                  onChange={(e) => setEditProduct({ ...editProduct, price: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 border-t border-gray-200 p-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEditProduct}
+                  className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary/90"
+                >
+                  Save Info
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Stock Modal */}
+        {showStockModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-gray-900">Add Stock</h3>
+                <button onClick={() => setShowStockModal(false)} className="text-gray-400 hover:text-gray-600">X</button>
+              </div>
+              <div className="space-y-4 p-6">
+                <p className="text-sm text-gray-600">Enter stock quantity to add for this product.</p>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="Stock to add"
+                  value={stockToAdd}
+                  onChange={(e) => setStockToAdd(Number.parseInt(e.target.value, 10) || 0)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 border-t border-gray-200 p-6">
+                <button
+                  onClick={() => setShowStockModal(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddStock}
+                  className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary/90"
+                >
+                  Add Stock
                 </button>
               </div>
             </div>

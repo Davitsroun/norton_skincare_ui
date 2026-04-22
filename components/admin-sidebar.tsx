@@ -27,8 +27,8 @@ const navItems: NavItem[] = [
   { label: 'Products', href: '/admin/products', icon: <Package className="w-5 h-5" /> },
   { label: 'Users', href: '/admin/users', icon: <Users className="w-5 h-5" /> },
   { label: 'Statistics', href: '/admin/statistics', icon: <BarChart3 className="w-5 h-5" /> },
-  { label: 'Stock', href: '/admin/stock', icon: <AlertCircle className="w-5 h-5" /> },
-  { label: 'Offers', href: '/admin/offers', icon: <Percent className="w-5 h-5" /> },
+  // { label: 'Stock', href: '/admin/stock', icon: <AlertCircle className="w-5 h-5" /> },
+  // { label: 'Offers', href: '/admin/offers', icon: <Percent className="w-5 h-5" /> },
   { label: 'Settings', href: '/admin/settings', icon: <Settings className="w-5 h-5" /> },
 ];
 

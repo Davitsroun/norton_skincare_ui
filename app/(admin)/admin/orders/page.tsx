@@ -40,7 +40,10 @@ export default function AdminOrders() {
     }
   };
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
+  const handleStatusChange = (
+    orderId: string,
+    newStatus: (typeof orders)[number]['status']
+  ) => {
     const order = orders.find(o => o.id === orderId);
     if (order && order.status !== newStatus) {
       setOrders(orders.map(o => 
@@ -135,11 +138,15 @@ export default function AdminOrders() {
                   </th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700">Name</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700">Address</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700 flex items-center gap-1">
-                    Date <ChevronDown className="w-4 h-4" />
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                    <span className="inline-flex items-center gap-1">
+                      Date <ChevronDown className="w-4 h-4" />
+                    </span>
                   </th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700 flex items-center gap-1">
-                    Price <ChevronDown className="w-4 h-4" />
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                    <span className="inline-flex items-center gap-1">
+                      Price <ChevronDown className="w-4 h-4" />
+                    </span>
                   </th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700">Status</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700">Action</th>
@@ -180,7 +187,9 @@ export default function AdminOrders() {
                     <td className="px-6 py-4">
                       <select
                         value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                        onChange={(e) =>
+                          handleStatusChange(order.id, e.target.value as (typeof orders)[number]['status'])
+                        }
                         className={`px-3 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer transition-all ${
                           order.status === 'Pending' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' :
                           order.status === 'Dispatched' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' :
@@ -194,9 +203,9 @@ export default function AdminOrders() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                        {/* <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
                           <Eye className="w-4 h-4 text-gray-600" />
-                        </button>
+                        </button> */}
                         <button 
                           onClick={() => handleDeleteOrder(order.id)}
                           className="p-2 hover:bg-red-100 rounded-lg transition-colors"

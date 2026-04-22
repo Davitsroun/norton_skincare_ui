@@ -21,24 +21,38 @@ export default function ProductDetailPage() {
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [reviews, setReviews] = useState(initialProductReviews);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [relatedTypeFilter, setRelatedTypeFilter] = useState('all');
 
   useEffect(() => {
     setIsClient(true);
     if (!isLoading && !isAuthenticated) {
       router.push('/');
     }
+    const storedFavorites = localStorage.getItem('favorites');
+    if (storedFavorites) {
+      setFavorites(JSON.parse(storedFavorites));
+    }
     const timer = setTimeout(() => setIsPageLoading(false), 800);
     return () => clearTimeout(timer);
   }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    setSelectedImageIndex(0);
+    setRelatedTypeFilter('all');
+  }, [productId]);
 
   if (isPageLoading) {
     return <SkeletonLoader />;
   }
 
   const toggleFavorite = (productId: string) => {
-    setFavorites((prev) =>
-      prev.includes(productId) ? prev.filter((fav) => fav !== productId) : [...prev, productId]
-    );
+    const nextFavorites = favorites.includes(productId)
+      ? favorites.filter((fav) => fav !== productId)
+      : [...favorites, productId];
+    setFavorites(nextFavorites);
+    localStorage.setItem('favorites', JSON.stringify(nextFavorites));
+    window.dispatchEvent(new Event('favorites-updated'));
   };
 
   const handleSubmitReview = () => {
@@ -62,6 +76,27 @@ export default function ProductDetailPage() {
     return null;
   }
 
+  const toTypeLabel = (value: string) =>
+    value
+      .split('-')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+  const productImageOptions = Array.from(
+    new Set([
+      product.image,
+      ...mockProducts
+        .filter((p) => p.category === product.category && p.id !== product.id)
+        .map((p) => p.image),
+    ])
+  ).slice(0, 3);
+
+  const rawRelatedProducts = mockProducts.filter((p) => p.id !== product.id);
+  const relatedTypeOptions = Array.from(new Set(rawRelatedProducts.map((p) => p.category)));
+  const filteredRelatedProducts = rawRelatedProducts
+    .filter((p) => relatedTypeFilter === 'all' || p.category === relatedTypeFilter)
+    .slice(0, 4);
+
   const relatedProducts = mockProducts
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
@@ -84,10 +119,32 @@ export default function ProductDetailPage() {
               {/* Main Image */}
               <div className="aspect-square bg-gradient-to-br from-white to-gray-50 rounded-3xl overflow-hidden flex items-center justify-center border border-gray-200 hover:border-primary/30 transition-colors shadow-md hover:shadow-xl">
                 <img
-                  src={product.image}
+                  src={productImageOptions[selectedImageIndex] ?? product.image}
                   alt={product.name}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
+              </div>
+
+              {/* Image Option Buttons */}
+              <div className="grid grid-cols-3 gap-3">
+                {productImageOptions.map((image, index) => (
+                  <button
+                    key={`${product.id}-image-option-${index}`}
+                    type="button"
+                    onClick={() => setSelectedImageIndex(index)}
+                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                      selectedImageIndex === index
+                        ? 'border-primary shadow-md'
+                        : 'border-gray-200 hover:border-primary/40'
+                    }`}
+                  >
+                    <img
+                      src={image}
+                      alt={`${product.name} option ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -194,7 +251,9 @@ export default function ProductDetailPage() {
                   } active:scale-95`}
                 >
                   <Heart
-                    className="w-5 h-5"
+                    className={`w-5 h-5 ${
+                      favorites.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'
+                    }`}
                     fill={favorites.includes(product.id) ? 'currentColor' : 'none'}
                   />
                 </button>
@@ -254,13 +313,40 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Related Products - "You Might Also Like" */}
-        {relatedProducts.length > 0 && (
-          <div className="border-t border-gray-200 pt-12">
+        {rawRelatedProducts.length > 0 && (
+          <div className="border-t border-gray-200 pt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8">
               YOU MIGHT ALSO LIKE
             </h2>
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setRelatedTypeFilter('all')}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  relatedTypeFilter === 'all'
+                    ? 'bg-primary text-white'
+                    : 'border border-gray-300 text-gray-700 hover:border-primary hover:text-primary'
+                }`}
+              >
+                All Types
+              </button>
+              {relatedTypeOptions.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setRelatedTypeFilter(type)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    relatedTypeFilter === type
+                      ? 'bg-primary text-white'
+                      : 'border border-gray-300 text-gray-700 hover:border-primary hover:text-primary'
+                  }`}
+                >
+                  {toTypeLabel(type)}
+                </button>
+              ))}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((relatedProduct) => (
+              {filteredRelatedProducts.map((relatedProduct) => (
                 <div
                   key={relatedProduct.id}
                   onClick={() => router.push(`/shop/${relatedProduct.id}`)}
@@ -288,9 +374,10 @@ export default function ProductDetailPage() {
                       className="absolute top-3 right-3 bg-white rounded-full p-2 hover:bg-gray-100 transition-all active:scale-90"
                     >
                       <Heart
-                        className="w-5 h-5"
+                        className={`w-5 h-5 ${
+                          favorites.includes(relatedProduct.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'
+                        }`}
                         fill={favorites.includes(relatedProduct.id) ? 'currentColor' : 'none'}
-                        color={favorites.includes(relatedProduct.id) ? '#ef4444' : 'currentColor'}
                       />
                     </button>
                   </div>
@@ -333,11 +420,16 @@ export default function ProductDetailPage() {
                 </div>
               ))}
             </div>
+            {filteredRelatedProducts.length === 0 && (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm font-medium text-gray-500">
+                No related products for this type yet.
+              </div>
+            )}
           </div>
         )}
 
         {/* Reviews Section */}
-        <div className="mt-20 border-t border-gray-200 pt-12">
+        <div className="mt-20 border-t border-gray-200 pt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8">Customer Reviews</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
