@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { SkeletonLoader } from '@/components/skeleton-loader';
+import { PageHeader } from '@/components/page-header';
 import { Trash2, Plus, Minus, ShoppingBag, X } from 'lucide-react';
 import {
   Dialog,
@@ -46,13 +47,21 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white py-12">
+    <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 text-balance">Shopping Cart</h1>
-            <p className="text-gray-600">You have {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in your cart</p>
-          </div>
+          <PageHeader
+            icon={ShoppingBag}
+            eyebrow="Checkout"
+            titleBefore="Shopping"
+            titleGradient="Cart"
+            description={
+              <>
+                You have {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in your
+                cart — ready when you are at{' '}
+                <span className="font-medium text-primary">Nature Leaf</span>
+              </>
+            }
+          />
 
           {cartItems.length === 0 ? (
             // Empty Cart

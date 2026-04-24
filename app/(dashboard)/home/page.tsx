@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { ProtectedRoute } from '@/components/protected-route';
 import { SiteFooter } from '@/components/site-footer';
 import { mockProducts, testimonials } from '@/lib/mock-data/index';
-import { Heart, Star, ShoppingCart } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
+import { Heart, Leaf, Star, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -62,21 +63,32 @@ export default function HomePage() {
 
   return (
     <ProtectedRoute>
+      <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5">
       {/* Hero Section */}
-      <section className="bg-white text-gray-900 py-16 sm:py-24 border-b border-gray-200">
+      <section className="text-gray-900 py-16 sm:py-24 border-b border-gray-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
             {/* Left Content */}
             <div>
-              <p className="text-primary text-sm font-semibold uppercase tracking-wide mb-4">
-                Premium CBD Collection
-              </p>
-              <h1 className="text-4xl md:text-5xl font-bold mb-4 text-balance">
-                Sustainable Healing, from Hemp, With Love
-              </h1>
-              <p className="text-gray-600 text-lg mb-8">
-                We provide premium quality Hemp CBD products that promote health and wellness for adults and pets without the risk of psychoactive effects.
-              </p>
+              <PageHeader
+                icon={Leaf}
+                eyebrow="Premium CBD Collection"
+                title={
+                  <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-4 text-balance">
+                    Sustainable Healing, from Hemp,{' '}
+                    <span className="bg-gradient-to-r from-primary to-[#5A9E9B] bg-clip-text text-transparent">
+                      With Love
+                    </span>
+                  </h1>
+                }
+                description={
+                  <p className="text-gray-600 text-lg">
+                    We provide premium quality Hemp CBD products that promote health and wellness
+                    for adults and pets — without psychoactive effects — from{' '}
+                    <span className="font-medium text-primary">Nature Leaf</span>.
+                  </p>
+                }
+              />
               
               {/* Key Points */}
               <ul className="space-y-3 mb-8">
@@ -125,7 +137,7 @@ export default function HomePage() {
       </section>
 
       {/* Featured Products Section */}
-      <section className="py-16 sm:py-24 bg-white">
+      <section className="py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
           <div className="text-center mb-12">
@@ -234,7 +246,7 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-16 sm:py-24 bg-white">
+      <section className="py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -298,6 +310,7 @@ export default function HomePage() {
       </section>
 
       <SiteFooter />
+      </div>
     </ProtectedRoute>
   );
 }

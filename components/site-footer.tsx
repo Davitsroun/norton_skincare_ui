@@ -48,7 +48,7 @@ export function SiteFooter() {
   };
 
   return (
-    <footer className="border-t border-primary/15 bg-gradient-to-b from-[#f4faf9] to-[#eef8f6] text-gray-700">
+    <footer className="border-t border-primary/15 bg-secondary text-gray-700">
       {/* Top strip — contact */}
       <div className="border-b border-primary/10 bg-[#e8f4f1]">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">

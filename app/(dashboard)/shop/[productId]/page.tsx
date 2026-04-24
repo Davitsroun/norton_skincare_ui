@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
+import { PageHeader } from '@/components/page-header';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { initialProductReviews, mockProducts } from '@/lib/mock-data/index';
-import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown } from 'lucide-react';
+import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown, Package } from 'lucide-react';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -101,16 +102,37 @@ export default function ProductDetailPage() {
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
 
+  const nameTokens = product.name.trim().split(/\s+/);
+  const titleGradientWord =
+    nameTokens.length > 1 ? nameTokens[nameTokens.length - 1]! : product.name;
+  const titleLead =
+    nameTokens.length > 1 ? nameTokens.slice(0, -1).join(' ') : '';
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <button
             onClick={() => router.push('/shop')}
-            className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-white px-4 py-2 text-primary hover:text-primary/80 hover:border-primary/40 font-semibold mb-8 transition-all shadow-sm"
+            className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-white/80 px-4 py-2 text-primary hover:text-primary/80 hover:border-primary/40 font-semibold mb-6 transition-all shadow-sm backdrop-blur-sm"
           >
             <ArrowLeft className="w-5 h-5" />
             Back to Shop
           </button>
+
+          <PageHeader
+            icon={Package}
+            eyebrow={
+              product.category.charAt(0).toUpperCase() + product.category.slice(1)
+            }
+            titleBefore={titleLead}
+            titleGradient={titleGradientWord}
+            description={
+              <>
+                {product.rating} stars · {product.reviews} reviews · from{' '}
+                <span className="font-medium text-primary">Nature Leaf</span>
+              </>
+            }
+          />
 
           {/* Product Detail */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-16">
@@ -150,18 +172,6 @@ export default function ProductDetailPage() {
 
             {/* Product Info */}
             <div className="flex flex-col justify-start rounded-3xl border border-gray-200 bg-white/90 backdrop-blur-sm p-8 shadow-lg">
-              {/* Category */}
-              <div className="mb-4">
-                <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-primary text-xs font-bold uppercase tracking-widest">
-                  {product.category}
-                </span>
-              </div>
-
-              {/* Title and Rating */}
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 text-balance leading-tight">
-                {product.name}
-              </h1>
-
               {/* Rating */}
               <div className="flex items-center gap-3 mb-6">
                 <div className="flex gap-1">

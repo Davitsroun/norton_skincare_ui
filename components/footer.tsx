@@ -6,7 +6,7 @@ import { Mail, Instagram, Facebook, Twitter } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="w-full bg-muted/50 border-t border-border">
+    <footer className="w-full bg-secondary border-t border-border">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 lg:py-20">
         {/* Newsletter Section */}
         <div className="mb-12 md:mb-16 p-8 md:p-12 rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-border">

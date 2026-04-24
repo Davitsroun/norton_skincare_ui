@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { mockProducts } from '@/lib/mock-data/index';
-import { Heart, ShoppingCart, Star, ArrowLeft } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
+import { Heart, HeartOff, ShoppingCart, Star } from 'lucide-react';
 
 export default function FavoritesPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -39,7 +40,15 @@ export default function FavoritesPage() {
 
   const favoriteProducts = mockProducts.filter((p) => favorites.includes(p.id));
 
+  const removeFavorite = (productId: string) => {
+    const nextFavorites = favorites.filter((id) => id !== productId);
+    setFavorites(nextFavorites);
+    localStorage.setItem('favorites', JSON.stringify(nextFavorites));
+    window.dispatchEvent(new Event('favorites-updated'));
+  };
+
   return (
+    <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* <button
           type="button"
@@ -50,16 +59,26 @@ export default function FavoritesPage() {
           Back to Shop
         </button> */}
 
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-            My Favorites
-          </h1>
-          {favoriteProducts.length > 0 && (
-            <p className="text-sm font-semibold text-gray-600">
-              {favoriteProducts.length} item{favoriteProducts.length > 1 ? 's' : ''} in box
-            </p>
-          )}
-        </div>
+        <PageHeader
+          icon={Heart}
+          eyebrow="Saved for you"
+          titleBefore="My"
+          titleGradient="Favorites"
+          description={
+            favoriteProducts.length > 0 ? (
+              <>
+                {favoriteProducts.length} item{favoriteProducts.length > 1 ? 's' : ''}{' '}
+                saved with{' '}
+                <span className="font-medium text-primary">Nature Leaf</span>
+              </>
+            ) : (
+              <>
+                Save products you love — sign in and heart items across{' '}
+                <span className="font-medium text-primary">Nature Leaf</span>
+              </>
+            )
+          }
+        />
 
         {favoriteProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl">
@@ -102,12 +121,10 @@ export default function FavoritesPage() {
                   {/* Favorite Button */}
                   <button
                     type="button"
+                    aria-label="Remove from favorites"
                     onClick={(e) => {
                       e.stopPropagation();
-                      const nextFavorites = favorites.filter((id) => id !== product.id);
-                      setFavorites(nextFavorites);
-                      localStorage.setItem('favorites', JSON.stringify(nextFavorites));
-                      window.dispatchEvent(new Event('favorites-updated'));
+                      removeFavorite(product.id);
                     }}
                     className="absolute right-4 top-4 cursor-pointer rounded-full bg-white p-2.5 shadow-lg transition-all hover:bg-red-100"
                   >
@@ -166,14 +183,23 @@ export default function FavoritesPage() {
                     )}
                   </div>
 
-                  {/* Shop Button */}
-                  <button
-                    type="button"
-                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 py-2.5 font-semibold text-white shadow-md transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-lg"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    ADD TO CART
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 py-2.5 font-semibold text-white shadow-md transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-lg"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      ADD TO CART
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeFavorite(product.id)}
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-red-200 bg-white py-2.5 text-sm font-semibold text-red-600 shadow-sm transition-all hover:border-red-300 hover:bg-red-50"
+                    >
+                      <HeartOff className="h-4 w-4" aria-hidden />
+                      Unfavorite
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -181,5 +207,6 @@ export default function FavoritesPage() {
           </div>
         )}
       </div>
+    </div>
   );
 }

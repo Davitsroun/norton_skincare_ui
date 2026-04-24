@@ -90,7 +90,7 @@ export function Navigation() {
           </div>
 
           {/* Right Section */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 ">
             <NotificationCenter />
 
             <button
@@ -104,10 +104,10 @@ export function Navigation() {
               aria-label="Favorites"
             >
               <Heart
-                className={`h-5 w-5 ${favoriteCount > 0 || pathname === '/favorites' ? 'fill-current' : ''}`}
+                className={`h-6 w-6 ${favoriteCount > 0 || pathname === '/favorites' ? 'fill-current' : ''}`}
               />
               {favoriteCount > 0 && (
-                <span className="absolute right-0 top-0 flex h-5 w-5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                <span className="absolute right-0 top-0 flex h-4 w-4 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border border-white">
                   {favoriteCount}
                 </span>
               )}
@@ -119,9 +119,9 @@ export function Navigation() {
               className="relative cursor-pointer text-gray-600 transition-colors hover:text-primary"
               aria-label="Shopping cart"
             >
-              <ShoppingCart className="h-5 w-5" />
+              <ShoppingCart className="h-6 w-5" />
               {cartCount > 0 && (
-                <span className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                <span className="absolute right-0 top-0 flex h-4 w-4 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border border-white">
                   {cartCount}
                 </span>
               )}

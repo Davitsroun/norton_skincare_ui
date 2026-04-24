@@ -1,9 +1,10 @@
 'use client';
 
+import { PageHeader } from '@/components/page-header';
 import { ProtectedRoute } from '@/components/protected-route';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { mockOrderHistory } from '@/lib/mock-data/index';
-import { ChevronDown, Download, RefreshCw } from 'lucide-react';
+import { ChevronDown, Package } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 type OrderStatus = 'all' | 'completed' | 'pending' | 'shipped' | 'cancelled';
@@ -65,50 +66,65 @@ export default function HistoryPage() {
     {
       label: 'Total Orders',
       value: mockOrderHistory.length,
+      cardClass:
+        'border-l-4 border-l-primary bg-gradient-to-br from-primary/10 via-white to-secondary/30',
+      valueClass: 'text-primary',
     },
     {
       label: 'Completed',
       value: mockOrderHistory.filter((o) => o.status === 'completed').length,
+      cardClass:
+        'border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/50',
+      valueClass: 'text-emerald-800',
     },
     {
       label: 'In Transit',
       value: mockOrderHistory.filter((o) => o.status === 'shipped').length,
+      cardClass:
+        'border-l-4 border-l-sky-500 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/50',
+      valueClass: 'text-sky-800',
     },
     {
       label: 'Total Spent',
       value: `$${mockOrderHistory.reduce((sum, o) => sum + o.total, 0)}`,
+      cardClass:
+        'border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40',
+      valueClass: 'text-amber-900',
     },
-  ];
+  ] as const;
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-white py-8">
+      <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-            Order History
-          </h1>
-          <p className="text-gray-600">
-            View and manage all your orders with Nature Leaf
-          </p>
-        </div>
+        <PageHeader
+          icon={Package}
+          eyebrow="Your orders"
+          titleBefore="Order"
+          titleGradient="History"
+          description={
+            <>
+              View and manage all your orders with{' '}
+              <span className="font-medium text-primary">Nature Leaf</span>
+            </>
+          }
+        />
 
         {/* Statistics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {summaryStats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-all"
+              className={`rounded-2xl border border-gray-200/80 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${stat.cardClass}`}
             >
-              <p className="text-sm font-medium text-gray-500 mb-2">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+              <p className="text-sm font-medium text-gray-600 mb-2">{stat.label}</p>
+              <p className={`text-2xl font-bold ${stat.valueClass}`}>{stat.value}</p>
             </div>
           ))}
         </div>
 
         {/* Filters and Actions */}
-        <div className="bg-gray-50 rounded-lg p-6 mb-8 border border-gray-200">
+        <div className="rounded-2xl border border-primary/20 bg-white/80 p-6 mb-8 shadow-sm backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Filter Buttons */}
             <div className="flex flex-wrap gap-2">
@@ -117,10 +133,10 @@ export default function HistoryPage() {
                   <button
                     key={status}
                     onClick={() => setSelectedStatus(status as OrderStatus)}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                       selectedStatus === status
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                        : 'bg-secondary/80 text-gray-700 hover:bg-secondary border border-transparent hover:border-primary/20'
                     }`}
                   >
                     {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -149,7 +165,7 @@ export default function HistoryPage() {
             filteredOrders.map((order) => (
               <div
                 key={order.id}
-                className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200"
+                className="overflow-hidden rounded-xl border border-gray-200/90 bg-white/90 shadow-md transition-all duration-300 hover:border-primary/25 hover:shadow-lg"
               >
                 {/* Order Header */}
                 <button
@@ -158,7 +174,7 @@ export default function HistoryPage() {
                       expandedOrder === order.id ? null : order.id
                     )
                   }
-                  className="w-full p-6 flex items-center justify-between hover:bg-primary/5 transition-colors"
+                  className="flex w-full items-center justify-between p-6 transition-colors hover:bg-gradient-to-r hover:from-primary/[0.06] hover:to-transparent"
                 >
                   <div className="flex-1 text-left">
                     <div className="flex items-center gap-4 mb-3">
@@ -184,8 +200,8 @@ export default function HistoryPage() {
                     </p>
                   </div>
 
-                  <div className="text-right mr-4">
-                    <p className="text-lg font-bold text-gray-900">
+                  <div className="mr-4 text-right">
+                    <p className="text-lg font-bold text-primary">
                       ${order.total}
                     </p>
                     {order.trackingNumber && (
@@ -196,18 +212,21 @@ export default function HistoryPage() {
                   </div>
 
                   <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform ${
-                      expandedOrder === order.id ? 'rotate-180' : ''
+                    className={`h-5 w-5 shrink-0 transition-transform ${
+                      expandedOrder === order.id
+                        ? 'rotate-180 text-primary'
+                        : 'text-gray-400'
                     }`}
                   />
                 </button>
 
                 {/* Expanded Details */}
                 {expandedOrder === order.id && (
-                  <div className="border-t border-gray-200 p-6 bg-gray-50">
+                  <div className="border-t border-primary/10 bg-gradient-to-b from-secondary/40 to-gray-50/80 p-6">
                     {/* Order Items */}
-                    <h3 className="font-semibold text-gray-900 mb-4">
-                      Order Items
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
+                      <span className="h-1 w-6 rounded-full bg-primary" aria-hidden />
+                      Order items
                     </h3>
                     <div className="space-y-4 mb-6">
                       {order.items.map((item) => (
@@ -291,8 +310,9 @@ export default function HistoryPage() {
               </div>
             ))
           ) : (
-            <div className="bg-gray-50 rounded-lg p-12 text-center border border-gray-200">
-              <p className="text-gray-600 mb-4">No orders found</p>
+            <div className="rounded-2xl border border-dashed border-primary/30 bg-secondary/40 p-12 text-center">
+              <Package className="mx-auto mb-4 h-12 w-12 text-primary/60" aria-hidden />
+              <p className="mb-4 text-gray-600">No orders match this filter.</p>
               <a
                 href="/shop"
                 className="inline-block bg-gradient-to-r from-primary to-primary/90 text-white px-6 py-2 rounded-lg font-semibold hover:from-primary/90 hover:to-primary transition-all"

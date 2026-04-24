@@ -1,11 +1,97 @@
 'use client';
 
+import { PageHeader } from '@/components/page-header';
 import { ProtectedRoute } from '@/components/protected-route';
 import { SiteFooter } from '@/components/site-footer';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { Phone, Mail, MapPin, CheckCircle, Send } from 'lucide-react';
+import {
+  Phone,
+  Mail,
+  MapPin,
+  CheckCircle,
+  Send,
+  Leaf,
+  Shield,
+  Sparkles,
+  Clock,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useState, useEffect } from 'react';
+
+const highlightStats = [
+  {
+    label: 'Broad-spectrum focus',
+    value: '100%',
+    cardClass:
+      'border-l-4 border-l-primary bg-gradient-to-br from-primary/10 via-white to-secondary/30',
+    valueClass: 'text-primary',
+  },
+  {
+    label: 'Third-party tested',
+    value: 'Lab OK',
+    cardClass:
+      'border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/50',
+    valueClass: 'text-emerald-800',
+  },
+  {
+    label: 'Response time',
+    value: '< 24h',
+    cardClass:
+      'border-l-4 border-l-sky-500 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/50',
+    valueClass: 'text-sky-800',
+  },
+  {
+    label: 'Wellness categories',
+    value: '12+',
+    cardClass:
+      'border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40',
+    valueClass: 'text-amber-900',
+  },
+] as const;
+
+const contactChannels = [
+  {
+    title: 'Phone',
+    detail: '(+876) 765 665',
+    hint: 'Weekdays 9am–6pm',
+    icon: Phone,
+    cardClass:
+      'border-l-4 border-l-sky-500 bg-gradient-to-br from-sky-50/80 via-white to-white',
+  },
+  {
+    title: 'Email',
+    detail: 'mail@natureleaf.id',
+    hint: 'We reply within one business day',
+    icon: Mail,
+    cardClass:
+      'border-l-4 border-l-primary bg-gradient-to-br from-primary/10 via-white to-secondary/20',
+  },
+  {
+    title: 'Studio',
+    detail: 'Preah Sihanouk Blvd (274), Phnom Penh',
+    hint: 'Visits by appointment',
+    icon: MapPin,
+    cardClass:
+      'border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/70 via-white to-white',
+  },
+] as const;
+
+const brandPillars = [
+  'Premium hemp & CBD sourcing',
+  'Sustainable packaging where we can',
+  'Transparent lab results',
+  'Support that actually answers',
+] as const;
+
+/**
+ * Must be an embeddable URL — not a normal https://www.google.com/maps/place/… link.
+ * To refresh: Google Maps → Share → Embed a map → copy the iframe `src`.
+ * Fallback below uses coordinates (classic embed format).
+ */
+const GOOGLE_MAPS_EMBED_SRC = `https://maps.google.com/maps?q=${encodeURIComponent('11.5560765,104.927258')}&z=17&hl=en&output=embed`;
+
+const GOOGLE_MAPS_PLACE_URL =
+  'https://www.google.com/maps/place/Preah+Sihanouk+Blvd+(274),+Phnom+Penh,+Cambodia/@11.5560765,104.927258,17z';
 
 export default function AboutPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -53,256 +139,234 @@ export default function AboutPage() {
 
   return (
     <ProtectedRoute>
-      {/* Header Section */}
-      <section className="relative overflow-hidden py-16 sm:py-24 border-b border-primary/20">
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          src="/vecteezy_sky-cartoon-background-video_20106487.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-        />
-        <div className="absolute inset-0 bg-black/45" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-block mb-4">
-            <span className="text-white/90 font-semibold text-sm uppercase tracking-wide">Get In Touch</span>
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 text-balance">
-            Contact Us
-          </h1>
-          <p className="text-white/90 text-lg max-w-2xl mx-auto">
-            Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
-          </p>
-        </div>
-      </section>
+      <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5 py-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <PageHeader
+            icon={Leaf}
+            eyebrow="Who we are"
+            titleBefore="About"
+            titleGradient="Us"
+            description={
+              <>
+                Our story, how to reach the team, and what drives{' '}
+                <span className="font-medium text-primary">Nature Leaf</span> — same calm,
+                modern layout you see across your account.
+              </>
+            }
+          />
 
-      {/* Logo Grid */}
-      <section className="py-16 bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-gray-600 font-semibold text-sm uppercase tracking-wide mb-8">Our Partners</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 items-center justify-center">
-            {['Logo', 'LogoIpsum', 'Logo', 'LogoIpsum'].map((logo, idx) => (
-              <div key={idx} className="text-center py-8 border border-gray-200 rounded-xl bg-white hover:shadow-md hover:border-primary/30 transition-all">
-                <p className="text-gray-600 font-semibold">{logo}</p>
+          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {highlightStats.map((stat) => (
+              <div
+                key={stat.label}
+                className={`rounded-2xl border border-gray-200/80 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${stat.cardClass}`}
+              >
+                <p className="mb-2 text-sm font-medium text-gray-600">{stat.label}</p>
+                <p className={`text-2xl font-bold ${stat.valueClass}`}>{stat.value}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* Contact Form Section */}
-      <section className="py-16 sm:py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Contact Form */}
-            <div className="lg:col-span-2 bg-gradient-to-br from-gray-50 to-white rounded-2xl p-8 border border-gray-200">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                Send us a message
-              </h2>
-              <p className="text-gray-600 mb-8">We'll get back to you as soon as possible.</p>
+          <div className="mb-8 overflow-hidden rounded-2xl border border-gray-200/90 bg-white/90 shadow-md transition-all duration-300 hover:border-primary/25 hover:shadow-lg">
+            <div className="flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-stretch">
+              <div className="flex-1 space-y-4">
+                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 sm:text-2xl">
+                  <span
+                    className="h-1 w-6 rounded-full bg-primary"
+                    aria-hidden
+                  />
+                  Our story
+                </h2>
+                <p className="leading-relaxed text-gray-700">
+                  Nature Leaf brings together careful sourcing and honest labeling for
+                  broad-spectrum CBD and hemp wellness. We focus on products adults (and
+                  pets) can trust — without hype, and with support when you need it.
+                </p>
+                <ul className="space-y-3">
+                  {brandPillars.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <CheckCircle
+                        className="mt-0.5 h-5 w-5 shrink-0 text-primary"
+                        aria-hidden
+                      />
+                      <span className="font-medium text-gray-800">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl border border-primary/15 bg-gradient-to-br from-primary/15 to-secondary/40 lg:max-w-md">
+                <img
+                  src="https://i.pinimg.com/736x/e8/19/1a/e8191a94ec634f5d5b6f17cb1ccf042a.jpg"
+                  alt="Nature Leaf team and products"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Email */}
+          <div className="mb-8 rounded-2xl border border-primary/20 bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-sm font-medium text-primary">
+                <Sparkles className="h-4 w-4" aria-hidden />
+                Contact
+              </span>
+              <p className="text-sm text-gray-600">
+                Send a note — we read every message.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              <div className="space-y-6 lg:col-span-2">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Message us</h3>
+                  <p className="text-sm text-gray-600">
+                    We&apos;ll get back as soon as we can, usually within 24 hours.
+                  </p>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Input
+                      type="email"
+                      name="email"
+                      placeholder="Email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <Input
+                      type="tel"
+                      name="phone"
+                      placeholder="Phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <Input
+                    type="text"
+                    name="name"
+                    placeholder="Name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full rounded-xl border border-gray-200 bg-white/90 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                  <textarea
+                    name="message"
+                    placeholder="How can we help?"
+                    value={formData.message}
+                    onChange={handleInputChange}
+                    rows={5}
+                    className="w-full resize-y rounded-xl border border-gray-200 bg-white/90 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/90 px-6 py-3 font-semibold text-white shadow-md shadow-primary/20 transition-all hover:from-primary/90 hover:to-primary hover:shadow-lg"
+                  >
+                    <Send className="h-4 w-4" />
+                    Send message
+                  </button>
+                </form>
+              </div>
+
+              <div className="flex flex-col gap-4 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 via-white to-secondary/30 p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-primary">
+                  <Shield className="h-5 w-5" aria-hidden />
+                  <h3 className="font-bold text-gray-900">Newsletter</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  Occasional drops: new batches, gentle reminders, and wellness tips — no
+                  spam.
+                </p>
+                <form onSubmit={handleNewsletterSubmit} className="mt-auto space-y-3">
                   <Input
                     type="email"
-                    name="email"
-                    placeholder="Email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="rounded-lg border border-gray-300 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-gray-900 py-3 font-semibold text-white transition-all hover:bg-gray-800"
+                  >
+                    Subscribe
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
 
-                  {/* Phone */}
-                  <Input
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="rounded-lg border border-gray-300 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-
-                {/* Name */}
-                <Input
-                  type="text"
-                  name="name"
-                  placeholder="Name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="rounded-lg border border-gray-300 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 w-full"
-                />
-
-                {/* Message */}
-                <textarea
-                  name="message"
-                  placeholder="Message"
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  rows={6}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                />
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/90 text-white rounded-lg font-semibold hover:from-primary/90 hover:to-primary transition-all shadow-md hover:shadow-lg"
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {contactChannels.map((ch) => {
+              const Icon = ch.icon;
+              return (
+                <div
+                  key={ch.title}
+                  className={`rounded-2xl border border-gray-200/80 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${ch.cardClass}`}
                 >
-                  <Send className="w-4 h-4" />
-                  Send Message
-                </button>
-              </form>
-            </div>
-
-            {/* Newsletter Signup */}
-            <div className="bg-gradient-to-br from-primary to-primary/80 text-white rounded-2xl p-8 shadow-lg border border-primary/30">
-              <h3 className="text-2xl font-bold mb-2">Our Newsletter</h3>
-              <p className="text-white/90 mb-6 leading-relaxed">
-                Subscribe to receive exclusive updates, special offers, and wellness tips delivered to your inbox.
-              </p>
-
-              <form onSubmit={handleNewsletterSubmit} className="space-y-4">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                />
-
-                <button
-                  type="submit"
-                  className="w-full px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-semibold transition-all shadow-md"
-                >
-                  Subscribe Now
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Info Cards Section */}
-      <section className="py-16 sm:py-24 bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Phone Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-8 border border-blue-200 hover:shadow-lg hover:border-primary/30 transition-all">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-r from-primary to-primary/80 flex items-center justify-center shadow-md">
-                  <Phone className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900">Phone</h3>
-              </div>
-              <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                Call us to get support and answer any questions about our products.
-              </p>
-              <p className="text-primary font-bold text-lg">(+876) 765 665</p>
-            </div>
-
-            {/* Email Card */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-8 border border-green-200 hover:shadow-lg hover:border-primary/30 transition-all">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-r from-primary to-primary/80 flex items-center justify-center shadow-md">
-                  <Mail className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900">Email</h3>
-              </div>
-              <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                Reach out to us via email for detailed inquiries and support.
-              </p>
-              <p className="text-primary font-bold text-lg">
-                mail@natureleaf.id
-              </p>
-            </div>
-
-            {/* Location Card */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-8 border border-purple-200 hover:shadow-lg hover:border-primary/30 transition-all">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-r from-primary to-primary/80 flex items-center justify-center shadow-md">
-                  <MapPin className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900">Location</h3>
-              </div>
-              <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                Visit us at our headquarters for more information.
-              </p>
-              <p className="text-primary font-bold text-lg">
-                London Eye, London UK
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Map Section */}
-      <section className="py-16 sm:py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Find Us Here</h2>
-          <div className="w-full h-96 rounded-2xl overflow-hidden shadow-xl border border-gray-200">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3023.9860933036508!2d-74.00601592345047!3d40.71282033110619!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c25a27aebb0e61%3A0x40a5456225df38d!2sLondon%20Eye!5e0!3m2!1sen!2suk!4v1234567890"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen
-              loading="lazy"
-            ></iframe>
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section className="py-16 sm:py-24 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 text-center">
-            About Nature Leaf
-          </h2>
-          <p className="text-gray-600 text-center mb-12 max-w-2xl mx-auto">
-            Discover our commitment to quality and sustainability
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <p className="text-gray-700 leading-relaxed text-lg">
-                Nature Leaf is a premium CBD and hemp product company dedicated to
-                providing the highest quality products to our customers. We believe
-                in the power of nature and science combined to create wellness
-                solutions for everyone.
-              </p>
-
-              <div className="space-y-3">
-                {[
-                  'Premium Quality Products',
-                  'Sustainable & Eco-Friendly',
-                  'Third-Party Tested',
-                  'Customer-Focused Service',
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <div className="flex-shrink-0">
-                      <CheckCircle className="w-6 h-6 text-primary" />
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
+                      <Icon className="h-5 w-5" aria-hidden />
                     </div>
-                    <span className="text-gray-700 font-medium">{item}</span>
+                    <h3 className="font-bold text-gray-900">{ch.title}</h3>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <p className="mb-1 text-sm text-gray-600">{ch.hint}</p>
+                  <p className="font-semibold text-primary">{ch.detail}</p>
+                </div>
+              );
+            })}
+          </div>
 
-            <div className="aspect-square bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl overflow-hidden shadow-lg border border-primary/20">
-              <img
-                src="https://i.pinimg.com/736x/e8/19/1a/e8191a94ec634f5d5b6f17cb1ccf042a.jpg"
-                alt="Nature Leaf Team"
-                className="w-full h-full object-cover"
+          <div className="mb-8 overflow-hidden rounded-xl border border-gray-200/90 bg-white/90 shadow-md">
+            <div className="flex flex-col gap-1 border-b border-gray-100 bg-white/80 px-5 py-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                <MapPin className="h-5 w-5 text-primary" aria-hidden />
+                Find us
+              </h2>
+              <p className="text-sm text-gray-600">
+                <a
+                  href={GOOGLE_MAPS_PLACE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Open in Google Maps
+                </a>
+              </p>
+            </div>
+            <div className="aspect-[21/9] min-h-[240px] w-full sm:min-h-[320px]">
+              <iframe
+                title="Nature Leaf on Google Maps"
+                src={GOOGLE_MAPS_EMBED_SRC}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="h-full min-h-[240px] w-full sm:min-h-[320px]"
               />
             </div>
           </div>
-        </div>
-      </section>
 
-      <SiteFooter />
+          <div className="rounded-2xl border border-dashed border-primary/25 bg-secondary/30 px-5 py-6 text-center sm:px-8">
+            <div className="mx-auto mb-2 flex justify-center gap-2 text-primary">
+              <Clock className="h-5 w-5" aria-hidden />
+              <Leaf className="h-5 w-5" aria-hidden />
+            </div>
+            <p className="text-sm font-medium text-gray-800">
+              Built for clarity — questions welcome anytime.
+            </p>
+            <p className="mt-1 text-sm text-gray-600">
+              You&apos;ll see the same header and card style here as on order history and
+              shop pages.
+            </p>
+          </div>
+        </div>
+
+        <SiteFooter />
+      </div>
     </ProtectedRoute>
   );
 }

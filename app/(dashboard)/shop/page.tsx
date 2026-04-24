@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { mockProducts, shopCategories, shopSortOptions } from '@/lib/mock-data/index';
-import { Heart, Star, ShoppingCart, ChevronDown, Search } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
+import { Heart, Star, ShoppingCart, ChevronDown, Search, Store } from 'lucide-react';
 
 export default function ShopPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -89,7 +90,7 @@ export default function ShopPage() {
 
   if (!isClient || isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-secondary/60 via-background to-primary/5">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="mt-4 text-foreground">Loading...</p>
@@ -103,15 +104,20 @@ export default function ShopPage() {
   }
 
   return (
+    <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ">
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-            Our Shop
-          </h1>
-          <p className="text-gray-600">
-            Browse our premium collection of CBD and hemp products
-          </p>
-        </div>
+        <PageHeader
+          icon={Store}
+          eyebrow="Browse"
+          titleBefore="Our"
+          titleGradient="Shop"
+          description={
+            <>
+              Explore our premium CBD and hemp collection from{' '}
+              <span className="font-medium text-primary">Nature Leaf</span>
+            </>
+          }
+        />
 
         {/* Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center">
@@ -340,6 +346,7 @@ export default function ShopPage() {
               </div>
             )}
         </div>
+    </div>
     </div>
   );
 }
