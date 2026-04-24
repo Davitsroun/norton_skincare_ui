@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { PageHeader } from '@/components/page-header';
 import { SkeletonLoader } from '@/components/skeleton-loader';
@@ -13,7 +12,6 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.productId as string;
-  const { isAuthenticated, isLoading } = useAuth();
   const { addToCart } = useCart();
   const [isClient, setIsClient] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -27,16 +25,13 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     setIsClient(true);
-    if (!isLoading && !isAuthenticated) {
-      router.push('/');
-    }
     const storedFavorites = localStorage.getItem('favorites');
     if (storedFavorites) {
       setFavorites(JSON.parse(storedFavorites));
     }
     const timer = setTimeout(() => setIsPageLoading(false), 800);
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isLoading, router]);
+  }, []);
 
   useEffect(() => {
     setSelectedImageIndex(0);
@@ -73,7 +68,7 @@ export default function ProductDetailPage() {
 
   const product = mockProducts.find((p) => p.id === productId);
 
-  if (!isAuthenticated || !product) {
+  if (!product) {
     return null;
   }
 

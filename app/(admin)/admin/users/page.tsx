@@ -125,7 +125,8 @@ export default function AdminUsers() {
                       </button>
                     </td>
                     <td className="px-6 py-4">
-                      <select
+                      {user.role}
+                      {/* <select
                         value={user.role}
                         onChange={(e) =>
                           handleChangeRole(user.id, e.target.value as (typeof users)[number]['role'])
@@ -135,7 +136,7 @@ export default function AdminUsers() {
                         <option value="Customer">Customer</option>
                         <option value="Moderator">Moderator</option>
                         <option value="Admin">Admin</option>
-                      </select>
+                      </select> */}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">

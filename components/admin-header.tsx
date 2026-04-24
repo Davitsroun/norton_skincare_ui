@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { Bell, Search } from 'lucide-react';
 
 interface AdminHeaderProps {
   title: string;
@@ -22,22 +21,6 @@ export function AdminHeader({ title, description }: AdminHeaderProps) {
 
         {/* Top Right Actions */}
         <div className="flex items-center gap-4">
-          {/* Search */}
-          <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg px-4 py-2">
-            <Search className="w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="bg-transparent outline-none text-sm w-40 placeholder:text-gray-400"
-            />
-          </div>
-
-          {/* Notifications */}
-          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
-            <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
-          </button>
-
           {/* User profile — admin layout with sidebar (same as other admin pages) */}
           <Link
             href="/admin/profile"

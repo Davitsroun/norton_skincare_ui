@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { mockProducts } from '@/lib/mock-data/index';
@@ -10,7 +9,6 @@ import { PageHeader } from '@/components/page-header';
 import { Heart, HeartOff, ShoppingCart, Star } from 'lucide-react';
 
 export default function FavoritesPage() {
-  const { isAuthenticated, isLoading } = useAuth();
   const { addToCart } = useCart();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
@@ -19,23 +17,16 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     setIsClient(true);
-    if (!isLoading && !isAuthenticated) {
-      router.push('/');
-    }
     const storedFavorites = localStorage.getItem('favorites');
     if (storedFavorites) {
       setFavorites(JSON.parse(storedFavorites));
     }
     const timer = setTimeout(() => setIsPageLoading(false), 800);
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isLoading, router]);
+  }, []);
 
-  if (!isClient || isLoading || isPageLoading) {
+  if (!isClient || isPageLoading) {
     return <SkeletonLoader />;
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   const favoriteProducts = mockProducts.filter((p) => favorites.includes(p.id));

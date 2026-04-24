@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { mockProducts, shopCategories, shopSortOptions } from '@/lib/mock-data/index';
@@ -10,7 +9,6 @@ import { PageHeader } from '@/components/page-header';
 import { Heart, Star, ShoppingCart, ChevronDown, Search, Store } from 'lucide-react';
 
 export default function ShopPage() {
-  const { isAuthenticated, isLoading } = useAuth();
   const { addToCart } = useCart();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
@@ -26,9 +24,6 @@ export default function ShopPage() {
 
   useEffect(() => {
     setIsClient(true);
-    if (!isLoading && !isAuthenticated) {
-      router.push('/');
-    }
     const storedFavorites = localStorage.getItem('favorites');
     if (storedFavorites) {
       setFavorites(JSON.parse(storedFavorites));
@@ -41,7 +36,7 @@ export default function ShopPage() {
     }
     const timer = setTimeout(() => setIsPageLoading(false), 800);
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isLoading, router]);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -88,7 +83,7 @@ export default function ShopPage() {
   const endIndex = startIndex + productsPerPage;
   const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
-  if (!isClient || isLoading) {
+  if (!isClient) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-secondary/60 via-background to-primary/5">
         <div className="text-center">
@@ -97,10 +92,6 @@ export default function ShopPage() {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   return (

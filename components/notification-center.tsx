@@ -96,15 +96,16 @@ export function NotificationCenter() {
 
             {/* Filter Tabs */}
             <div className="flex gap-2 px-4 pt-3 border-b border-gray-100">
-              <button type="button" className="cursor-pointer rounded-full border border-gray-200 bg-white px-4 py-2 font-medium text-gray-900">
-                Today
-              </button>
-              <button type="button" className="cursor-pointer rounded-full px-4 py-2 text-gray-500 hover:text-gray-700">
+              <h2 className="text-medium font-medium text-gray-900 mb-1">Earlier</h2>
+              {/* <button type="button" className="cursor-pointer rounded-full border border-gray-200 bg-white px-4 py-2 font-medium text-gray-900 mb-1">
+           
+              </button> */}
+              {/* <button type="button" className="cursor-pointer rounded-full px-4 py-2 text-gray-500 hover:text-gray-700">
                 This Week
               </button>
               <button type="button" className="cursor-pointer rounded-full px-4 py-2 text-gray-500 hover:text-gray-700">
                 Earlier
-              </button>
+              </button> */}
             </div>
 
             {/* Notifications List */}

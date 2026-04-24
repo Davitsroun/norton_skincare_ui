@@ -26,6 +26,11 @@ export interface Order {
   total: number;
   status: 'completed' | 'pending' | 'shipped' | 'cancelled';
   trackingNumber?: string;
+  fulfillmentMethod?: 'pickup' | 'delivery';
+  customerName?: string;
+  contactNumber?: string;
+  deliveryAddress?: string;
+  paymentMethod?: 'khqr' | 'cash-on-delivery';
 }
 
 export interface ProductReview {
