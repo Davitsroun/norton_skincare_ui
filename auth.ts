@@ -1,16 +1,38 @@
 import type { NextAuthOptions } from 'next-auth';
-import KeycloakProvider from 'next-auth/providers/keycloak';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import type { JWT } from 'next-auth/jwt';
 import { isAdminRole } from '@/lib/auth/roles';
-import { mockAuthUsers } from '@/lib/mock-data/index';
 
 type TokenPayload = {
+  sub?: string;
+  email?: string;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  picture?: string;
   realm_access?: {
     roles?: string[];
   };
   resource_access?: Record<string, { roles?: string[] }>;
   preferred_username?: string;
+};
+
+type KeycloakTokenResponse = {
+  access_token?: string;
+  id_token?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type KeycloakCredentialsUser = {
+  id: string;
+  email?: string;
+  name?: string;
+  image?: string;
+  keycloakToken: string;
+  preferredUsername?: string;
+  roles: string[];
+  isAdmin: boolean;
 };
 
 function decodeJwtPayload(token: string): TokenPayload | null {
@@ -41,15 +63,86 @@ function extractKeycloakRoles(jwtToken: JWT, clientId?: string): string[] {
   return [...roles];
 }
 
-function getMockUserImage(token: JWT): string | undefined {
-  const tokenSub = typeof token.sub === 'string' ? token.sub : '';
-  const tokenEmail = typeof token.email === 'string' ? token.email.toLowerCase() : '';
+function extractRolesFromToken(token: string, clientId?: string): string[] {
+  const roles = new Set<string>();
+  const decoded = decodeJwtPayload(token);
 
-  const mockUser = mockAuthUsers.find(
-    (user) => user.id === tokenSub || user.email.toLowerCase() === tokenEmail
-  );
+  decoded?.realm_access?.roles?.forEach((role) => roles.add(role));
 
-  return mockUser?.imageUrl;
+  if (clientId) {
+    decoded?.resource_access?.[clientId]?.roles?.forEach((role) => roles.add(role));
+  }
+
+  return [...roles];
+}
+
+async function authorizeWithKeycloak(
+  username: string,
+  password: string
+): Promise<KeycloakCredentialsUser | null> {
+  const issuer = process.env.KEYCLOAK_ISSUER ?? 'http://localhost:8081/realms/rest-api';
+  const clientId = process.env.KEYCLOAK_CLIENT_ID ?? 'oauth-admin-client';
+  const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET ?? '';
+  const body = new URLSearchParams({
+    grant_type: 'password',
+    client_id: clientId,
+    username,
+    password,
+    scope: 'openid profile email',
+  });
+
+  if (clientSecret) {
+    body.set('client_secret', clientSecret);
+  }
+
+  const response = await fetch(`${issuer}/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => '');
+    let error: KeycloakTokenResponse | null = null;
+    try {
+      error = responseText ? (JSON.parse(responseText) as KeycloakTokenResponse) : null;
+    } catch {
+      error = null;
+    }
+
+    console.error('Keycloak password grant failed', {
+      status: response.status,
+      error: error?.error,
+      errorDescription: error?.error_description,
+      responseText: error ? undefined : responseText,
+    });
+    return null;
+  }
+
+  const tokenResponse = (await response.json()) as KeycloakTokenResponse;
+  const keycloakToken = tokenResponse.access_token ?? tokenResponse.id_token;
+  if (!keycloakToken) {
+    return null;
+  }
+
+  const decoded = decodeJwtPayload(tokenResponse.id_token ?? keycloakToken);
+  const roles = extractRolesFromToken(keycloakToken, clientId);
+  const firstName = decoded?.given_name ?? '';
+  const lastName = decoded?.family_name ?? '';
+  const fullName = decoded?.name ?? [firstName, lastName].filter(Boolean).join(' ');
+
+  return {
+    id: decoded?.sub ?? decoded?.preferred_username ?? username,
+    email: decoded?.email,
+    name: fullName || decoded?.preferred_username || username,
+    image: decoded?.picture,
+    keycloakToken,
+    preferredUsername: decoded?.preferred_username ?? username,
+    roles,
+    isAdmin: isAdminRole(roles),
+  };
 }
 
 export const authOptions: NextAuthOptions = {
@@ -57,44 +150,20 @@ export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       id: 'credentials',
-      name: 'Mock Login',
+      name: 'Keycloak Credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        username: { label: 'Username or email', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        const authMode = process.env.NEXT_PUBLIC_AUTH_MODE ?? 'mock';
-        if (authMode !== 'mock') {
-          return null;
-        }
-
-        const email = credentials?.email?.trim().toLowerCase();
+        const username = credentials?.username?.trim();
         const password = credentials?.password;
-        if (!email || !password) {
+        if (!username || !password) {
           return null;
         }
 
-        const foundUser = mockAuthUsers.find(
-          (user) => user.email.toLowerCase() === email && user.password === password
-        );
-
-        if (!foundUser) {
-          return null;
-        }
-
-        return {
-          id: foundUser.id,
-          email: foundUser.email,
-          name: foundUser.name,
-          image: foundUser.imageUrl,
-          roles: foundUser.roles,
-        };
+        return authorizeWithKeycloak(username, password);
       },
-    }),
-    KeycloakProvider({
-      issuer: process.env.KEYCLOAK_ISSUER ?? 'http://localhost:8080/realms/rest-api',
-      clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'oauth-admin-client',
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET ?? 'replace-me',
     }),
   ],
   session: {
@@ -106,20 +175,21 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, profile, user }) {
       if (account?.provider === 'credentials' && user) {
-        const roles =
-          'roles' in user && Array.isArray((user as Record<string, unknown>).roles)
-            ? ((user as Record<string, unknown>).roles as string[])
-            : [];
-        token.roles = roles;
-        token.isAdmin = isAdminRole(roles);
-        token.preferredUsername =
-          user.email?.split('@')[0] ?? user.name ?? token.preferredUsername;
-        token.imageUrl = user.image ?? token.imageUrl;
+        const credentialsUser = user as KeycloakCredentialsUser;
+        token.sub = credentialsUser.id;
+        token.name = credentialsUser.name;
+        token.email = credentialsUser.email;
+        token.picture = credentialsUser.image;
+        token.keycloakToken = credentialsUser.keycloakToken;
+        token.roles = credentialsUser.roles;
+        token.isAdmin = credentialsUser.isAdmin;
+        token.preferredUsername = credentialsUser.preferredUsername;
+        token.imageUrl = credentialsUser.image;
         return token;
       }
 
-      if (account?.id_token || account?.access_token) {
-        token.keycloakToken = account.id_token ?? account.access_token;
+      if (account?.access_token || account?.id_token) {
+        token.keycloakToken = account.access_token ?? account.id_token;
       }
 
       const preferredUsername =
@@ -147,12 +217,10 @@ export const authOptions: NextAuthOptions = {
       session.user.roles = token.roles ?? [];
       session.user.isAdmin = Boolean(token.isAdmin);
       session.user.username = token.preferredUsername;
-      const mockImage = getMockUserImage(token);
+      session.keycloakToken = token.keycloakToken;
       session.user.image =
         typeof token.imageUrl === 'string'
           ? token.imageUrl
-          : typeof mockImage === 'string'
-            ? mockImage
           : typeof token.picture === 'string'
             ? token.picture
             : session.user.image;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Eye, EyeOff } from 'lucide-react';
@@ -10,15 +10,14 @@ import Link from 'next/link';
 import { loginSchema } from '@/lib/validations/auth';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated, isAdmin } = useAuth();
-  const isMockAuth = (process.env.NEXT_PUBLIC_AUTH_MODE ?? 'mock') === 'mock';
 
   useEffect(() => {
     setIsClient(true);
@@ -33,13 +32,13 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isAdmin, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const result = loginSchema.safeParse({ email, password });
+    const result = loginSchema.safeParse({ username, password });
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors;
       setErrors({
-        email: fieldErrors.email?.[0],
+        username: fieldErrors.username?.[0],
         password: fieldErrors.password?.[0],
       });
       return;
@@ -47,12 +46,14 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      const success = await login(email, password);
+      const success = await login(username, password);
       if (!success) {
-        setErrors({ email: 'Invalid mock credentials.' });
+        setErrors({ username: 'Invalid Keycloak username or password.' });
+        return;
       }
+      router.push(isAdmin ? '/admin' : '/home');
     } catch {
-      setErrors({ email: 'Unable to start Keycloak login. Please try again.' });
+      setErrors({ username: 'Unable to log in with Keycloak. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -83,30 +84,24 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {isMockAuth && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                <p>Mock admin: admin@gmail.com / Admin123!</p>
-                <p>Mock user: user@gmail.com / User12345!</p>
-              </div>
-            )}
-            {/* Email Input */}
+            {/* Username Input */}
             <div>
               <Input
-                type="email"
-                placeholder="username"
-                value={email}
+                type="text"
+                placeholder="Username or email"
+                value={username}
                 onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errors.email) setErrors({ ...errors, email: undefined });
+                  setUsername(e.target.value);
+                  if (errors.username) setErrors({ ...errors, username: undefined });
                 }}
                 className={`rounded-full border-2 pl-5 py-3 text-base transition-colors placeholder:text-gray-400 ${
-                  errors.email
+                  errors.username
                     ? 'border-red-500 focus:border-red-500'
                     : 'border-gray-300 focus:border-primary'
                 }`}
               />
-              {errors.email && (
-                <p className="text-red-500 text-xs mt-2">{errors.email}</p>
+              {errors.username && (
+                <p className="text-red-500 text-xs mt-2">{errors.username}</p>
               )}
             </div>
 
@@ -163,51 +158,6 @@ export default function LoginPage() {
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
-
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-600 font-medium">or continue with</span>
-            </div>
-          </div>
-
-          {/* Social Login Buttons */}
-          <div className="flex gap-3 justify-center">
-            <button
-              type="button"
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-[#181717] text-white transition-colors hover:bg-black"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
-                <path d="M12 .296c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.384-1.332-1.754-1.332-1.754-1.09-.745.082-.729.082-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.833 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.303-5.467-1.333-5.467-5.93 0-1.31.47-2.38 1.236-3.22-.124-.304-.536-1.526.117-3.176 0 0 1.008-.322 3.3 1.23a11.51 11.51 0 0 1 3.003-.404c1.018.005 2.042.138 3.003.404 2.29-1.552 3.297-1.23 3.297-1.23.655 1.65.243 2.872.12 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.807 5.624-5.48 5.92.43.37.813 1.096.813 2.21 0 1.594-.015 2.878-.015 3.27 0 .321.216.694.825.576C20.565 22.09 24 17.592 24 12.296c0-6.627-5.373-12-12-12" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#5f6368] ring-1 ring-gray-300 transition-colors hover:bg-gray-50"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5">
-                <path
-                  fill="#4285F4"
-                  d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.08 3.56-5.15 3.56-8.65z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.12 0-5.77-2.1-6.71-4.92h-4v3.09A12 12 0 0 0 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.29 14.33A7.2 7.2 0 0 1 4.91 12c0-.81.14-1.6.38-2.33V6.58h-4A12 12 0 0 0 0 12c0 1.94.47 3.77 1.29 5.42l4-3.09z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.77c1.76 0 3.35.61 4.6 1.8l3.45-3.45C17.95 1.16 15.24 0 12 0A12 12 0 0 0 1.29 6.58l4 3.09c.94-2.82 3.59-4.9 6.71-4.9z"
-                />
-              </svg>
-            </button>
-          </div>
 
           {/* Sign Up Link */}
           <p className="text-center text-gray-600 text-sm mt-8">

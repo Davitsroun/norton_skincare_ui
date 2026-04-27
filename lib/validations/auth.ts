@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
+  username: z.string().min(1, 'Please enter your username or email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -11,7 +11,7 @@ export const registerSchema = z
     email: z.string().email('Please enter a valid email'),
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
     imageUrl: z.string().url('Image URL is invalid').optional().or(z.literal('')),
   })
@@ -30,7 +30,7 @@ export const otpSchema = z.object({
 
 export const resetPasswordSchema = z
   .object({
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
   })
   .refine((data) => data.password === data.confirmPassword, {

@@ -12,7 +12,6 @@ import { registerSchema } from '@/lib/validations/auth';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
     firstName: '',
     lastName: '',
@@ -82,7 +81,6 @@ export default function RegisterPage() {
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors;
       setErrors({
-        username: fieldErrors.username?.[0] ?? '',
         email: fieldErrors.email?.[0] ?? '',
         firstName: fieldErrors.firstName?.[0] ?? '',
         lastName: fieldErrors.lastName?.[0] ?? '',
@@ -95,18 +93,21 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const success = await register({
-        username: formData.username,
+      const result = await register({
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
         password: formData.password,
         imageUrl: formData.imageUrl,
       });
-      if (success) {
-        router.push('/home');
+      if (result.success) {
+        router.push('/login');
+      } else if (result.status === 409) {
+        setErrors({
+          submit: result.error ?? 'An account with this email already exists.',
+        });
       } else {
-        setErrors({ submit: 'Registration failed. Please try again.' });
+        setErrors({ submit: result.error ?? 'Registration failed. Please try again.' });
       }
     } catch {
       setErrors({ submit: 'An error occurred. Please try again.' });
@@ -285,25 +286,6 @@ export default function RegisterPage() {
                   <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>
                 )}
               </div>
-            </div>
-
-            {/* Username */}
-            <div>
-              <Input
-                type="text"
-                name="username"
-                placeholder="Username"
-                value={formData.username}
-                onChange={handleChange}
-                className={`w-full rounded-lg border-2 px-4 py-2.5 text-sm transition-colors placeholder:text-gray-400 ${
-                  errors.username
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-gray-300 focus:border-primary'
-                }`}
-              />
-              {errors.username && (
-                <p className="text-red-500 text-xs mt-1">{errors.username}</p>
-              )}
             </div>
 
             {/* Email */}

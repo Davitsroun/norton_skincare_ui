@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import {
+  defaultProfileFormData,
+  isSameProfileFormData,
+  mapUserToProfileFormData,
+} from '@/lib/profile-data';
 import { PageHeader } from '@/components/page-header';
 import {
   Mail,
@@ -34,14 +39,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
   });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    imageUrl: '',
-  });
+  const [formData, setFormData] = useState(defaultProfileFormData);
 
   useEffect(() => {
     if (!user) {
@@ -49,27 +47,8 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
     }
 
     setFormData((prev) => {
-      const next = {
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: prev.phone || '+1 (555) 123-4567',
-        address: prev.address || 'London, United Kingdom',
-        imageUrl: user.imageUrl || '',
-      };
-
-      if (
-        prev.firstName === next.firstName &&
-        prev.lastName === next.lastName &&
-        prev.email === next.email &&
-        prev.phone === next.phone &&
-        prev.address === next.address &&
-        prev.imageUrl === next.imageUrl
-      ) {
-        return prev;
-      }
-
-      return next;
+      const next = mapUserToProfileFormData(user, prev);
+      return isSameProfileFormData(prev, next) ? prev : next;
     });
   }, [user?.firstName, user?.lastName, user?.email, user?.imageUrl]);
 

@@ -8,6 +8,7 @@ declare module 'next-auth' {
       isAdmin: boolean;
       username?: string;
     };
+    keycloakToken?: string;
   }
 }
 

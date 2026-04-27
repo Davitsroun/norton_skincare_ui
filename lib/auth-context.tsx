@@ -1,8 +1,9 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { signIn as nextAuthSignIn, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
+import { getCsrfToken, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
 import type { ReactNode } from 'react';
+import { registerAction } from '@/actions/auth-actions';
 import { ADMIN_ROLE, hasAnyRole } from '@/lib/auth/roles';
 
 interface User {
@@ -19,8 +20,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (data: RegisterData) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
+  register: (data: RegisterData) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Pick<User, 'firstName' | 'lastName' | 'email' | 'imageUrl' | 'username'>>) => void;
   isAuthenticated: boolean;
@@ -29,13 +30,18 @@ interface AuthContextType {
 }
 
 interface RegisterData {
-  username: string;
   email: string;
   firstName: string;
   lastName: string;
   password: string;
   imageUrl?: string;
 }
+
+type RegisterResult = {
+  success: boolean;
+  error?: string;
+  status?: number;
+};
 
 type ProfileOverrides = Partial<
   Pick<User, 'firstName' | 'lastName' | 'email' | 'imageUrl' | 'username'>
@@ -129,33 +135,43 @@ export function useAuth() {
         ...profileOverride,
       }
     : null;
-  const authMode = process.env.NEXT_PUBLIC_AUTH_MODE ?? 'mock';
-
-  const login = async (email: string, password: string): Promise<boolean> => {
-    if (authMode === 'mock') {
-      const result = await nextAuthSignIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-      return Boolean(result?.ok) && !result?.error;
-    }
-
-    await nextAuthSignIn('keycloak', { callbackUrl: '/home' });
-    return true;
-  };
-
-  const register = async (_data: RegisterData): Promise<boolean> => {
-    if (authMode === 'mock') {
+  const login = async (username: string, password: string): Promise<boolean> => {
+    const csrfToken = await getCsrfToken();
+    if (!csrfToken) {
       return false;
     }
 
-    await nextAuthSignIn(
-      'keycloak',
-      { callbackUrl: '/home' },
-      { kc_action: 'register' }
-    );
-    return true;
+    const response = await fetch('/api/auth/callback/credentials', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        username,
+        password,
+        redirect: 'false',
+        callbackUrl: '/home',
+        csrfToken,
+        json: 'true',
+      }),
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const result = (await response.json()) as { url?: string };
+    const error = result.url ? new URL(result.url, window.location.origin).searchParams.get('error') : null;
+    return !error;
+  };
+
+  const register = async (data: RegisterData): Promise<RegisterResult> => {
+    return registerAction({
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      password: data.password,
+    });
   };
 
   const logout = async (): Promise<void> => {

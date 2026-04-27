@@ -10,6 +10,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ title, description }: AdminHeaderProps) {
   const { user } = useAuth();
+  console.log( "sssssssssssssss"+user);
 
   return (
     <header className="bg-white border-b border-gray-200 px-8 py-6 shadow-sm">
