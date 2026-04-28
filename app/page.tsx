@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Eye, EyeOff } from 'lucide-react';
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const loginInFlightRef = useRef(false);
   const router = useRouter();
   const { login, isAuthenticated, isAdmin } = useAuth();
 
@@ -34,6 +35,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loginInFlightRef.current) {
+      return;
+    }
+
     const result = loginSchema.safeParse({ username, password });
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors;
@@ -44,17 +49,21 @@ export default function LoginPage() {
       return;
     }
 
+    loginInFlightRef.current = true;
     setIsLoading(true);
+    setErrors({});
     try {
-      const success = await login(username, password);
-      if (!success) {
+      const result = await login(username, password);
+      if (!result.success) {
         setErrors({ username: 'Invalid Keycloak username or password.' });
+        loginInFlightRef.current = false;
+        setIsLoading(false);
         return;
       }
-      router.push(isAdmin ? '/admin' : '/home');
+      router.replace(result.isAdmin ? '/admin' : '/home');
     } catch {
       setErrors({ username: 'Unable to log in with Keycloak. Please try again.' });
-    } finally {
+      loginInFlightRef.current = false;
       setIsLoading(false);
     }
   };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ComponentProps } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { ArrowLeft, KeyRound, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,16 @@ import {
 
 type Step = 'email' | 'otp' | 'password' | 'success';
 type FormSubmitHandler = NonNullable<ComponentProps<'form'>['onSubmit']>;
+const OTP_LIFESPAN_SECONDS = 10 * 60;
+
+const formatCountdown = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds
+    .toString()
+    .padStart(2, '0')}`;
+};
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -30,6 +40,20 @@ export default function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [otpSecondsRemaining, setOtpSecondsRemaining] = useState(OTP_LIFESPAN_SECONDS);
+  const [resendMessage, setResendMessage] = useState('');
+
+  useEffect(() => {
+    if (step !== 'otp') {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setOtpSecondsRemaining((seconds) => Math.max(seconds - 1, 0));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [step]);
 
   const handleEmailSubmit: FormSubmitHandler = async (e) => {
     e.preventDefault();
@@ -52,6 +76,10 @@ export default function ForgotPasswordPage() {
       }
 
       setErrors({});
+      setOtp('');
+      setResetToken('');
+      setResendMessage('');
+      setOtpSecondsRemaining(OTP_LIFESPAN_SECONDS);
       setStep('otp');
     } catch {
       setErrors({ email: 'Unable to send OTP. Please try again.' });
@@ -85,6 +113,39 @@ export default function ForgotPasswordPage() {
       setStep('password');
     } catch {
       setErrors({ otp: 'Unable to verify OTP. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    const result = forgotPasswordEmailSchema.safeParse({ email });
+    if (!result.success) {
+      setErrors({
+        otp: 'Please go back and enter a valid email address.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await requestPasswordResetAction({ email });
+      if (!result.success) {
+        setErrors({
+          otp: result.error ?? 'Unable to resend OTP. Please try again.',
+        });
+        setResendMessage('');
+        return;
+      }
+
+      setOtp('');
+      setResetToken('');
+      setErrors({});
+      setResendMessage('A new OTP has been sent to your email.');
+      setOtpSecondsRemaining(OTP_LIFESPAN_SECONDS);
+    } catch {
+      setErrors({ otp: 'Unable to resend OTP. Please try again.' });
+      setResendMessage('');
     } finally {
       setIsLoading(false);
     }
@@ -225,15 +286,43 @@ export default function ForgotPasswordPage() {
                     <span>✕</span> {errors.otp}
                   </p>
                 )}
+                <div className="mt-2 grid grid-cols-2 items-center gap-3 text-xs">
+                  <div className="text-primary">
+                    {resendMessage}
+                  </div>
+                  <div className="text-right text-gray-600">
+                    OTP expires in{' '}
+                    <span className="font-semibold text-red-400">
+                      {formatCountdown(otpSecondsRemaining)}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || otpSecondsRemaining <= 0}
                 className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 rounded-xl transition-all shadow-lg hover:shadow-xl h-auto disabled:opacity-50 mt-4"
               >
-                {isLoading ? 'Verifying...' : 'Verify OTP'}
+                {isLoading
+                  ? 'Verifying...'
+                  : otpSecondsRemaining <= 0
+                    ? 'OTP expired'
+                    : 'Verify OTP'}
               </Button>
+
+              <div className="text-center text-sm text-gray-600">
+                <p className="mb-3">Did not receive the email?</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isLoading}
+                  onClick={handleResendOtp}
+                  className="w-full rounded-xl border-primary/30 py-3 font-semibold text-primary hover:bg-primary/5 h-auto disabled:opacity-50"
+                >
+                  {isLoading ? 'Sending...' : 'Resend email'}
+                </Button>
+              </div>
             </form>
           </>
         )}

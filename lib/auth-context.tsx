@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { getCsrfToken, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
+import { signIn, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
 import type { ReactNode } from 'react';
 import { registerAction } from '@/actions/auth-actions';
 import { ADMIN_ROLE, hasAnyRole } from '@/lib/auth/roles';
@@ -20,7 +20,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<LoginResult>;
   register: (data: RegisterData) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Pick<User, 'firstName' | 'lastName' | 'email' | 'imageUrl' | 'username'>>) => void;
@@ -41,6 +41,11 @@ type RegisterResult = {
   success: boolean;
   error?: string;
   status?: number;
+};
+
+type LoginResult = {
+  success: boolean;
+  isAdmin: boolean;
 };
 
 type ProfileOverrides = Partial<
@@ -135,34 +140,22 @@ export function useAuth() {
         ...profileOverride,
       }
     : null;
-  const login = async (username: string, password: string): Promise<boolean> => {
-    const csrfToken = await getCsrfToken();
-    if (!csrfToken) {
-      return false;
-    }
-
-    const response = await fetch('/api/auth/callback/credentials', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        username,
-        password,
-        redirect: 'false',
-        callbackUrl: '/home',
-        csrfToken,
-        json: 'true',
-      }),
+  const login = async (username: string, password: string): Promise<LoginResult> => {
+    const response = await signIn('credentials', {
+      redirect: false,
+      username,
+      password,
+      callbackUrl: '/home',
     });
 
-    if (!response.ok) {
-      return false;
+    if (!response?.ok || response.error) {
+      return { success: false, isAdmin: false };
     }
 
-    const result = (await response.json()) as { url?: string };
-    const error = result.url ? new URL(result.url, window.location.origin).searchParams.get('error') : null;
-    return !error;
+    return {
+      success: true,
+      isAdmin: false,
+    };
   };
 
   const register = async (data: RegisterData): Promise<RegisterResult> => {

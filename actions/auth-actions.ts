@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import {
   confirmPasswordResetService,
   registerService,
@@ -10,6 +11,10 @@ import {
   type RegisterServicePayload,
   type VerifyPasswordResetOtpPayload,
 } from '@/service/auth-service';
+
+const revalidateAuthPaths = (...paths: string[]) => {
+  paths.forEach((path) => revalidatePath(path));
+};
 
 export const registerAction = async (
   payload: RegisterServicePayload = {}
@@ -23,6 +28,8 @@ export const registerAction = async (
     password,
   });
 
+  revalidateAuthPaths('/register', '/login', '/');
+
   return result;
 };
 
@@ -32,6 +39,8 @@ export const requestPasswordResetAction = async (
   const { email } = payload;
 
   const result = await requestPasswordResetService(email);
+
+  revalidateAuthPaths('/forgot-password');
 
   return result;
 };
@@ -46,6 +55,8 @@ export const verifyPasswordResetOtpAction = async (
     otp,
   });
 
+  revalidateAuthPaths('/forgot-password');
+
   return result;
 };
 
@@ -59,6 +70,8 @@ export const confirmPasswordResetAction = async (
     resetToken,
     password,
   });
+
+  revalidateAuthPaths('/forgot-password', '/login', '/');
 
   return result;
 };

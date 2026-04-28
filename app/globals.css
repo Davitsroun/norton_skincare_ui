@@ -150,6 +150,11 @@
   select:disabled {
     cursor: not-allowed;
   }
+
+  input[type='password']::-ms-reveal,
+  input[type='password']::-ms-clear {
+    display: none;
+  }
 }
 
 /* Register page — illustration float + soft background motion */
