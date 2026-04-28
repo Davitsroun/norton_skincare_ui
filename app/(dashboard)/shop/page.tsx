@@ -195,7 +195,7 @@ export default function ShopPage() {
         <div>
           {/* Main Content */}
             {/* Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 mx-15 ">
               {paginatedProducts.map((product) => (
                 <div
                   key={product.id}
@@ -223,7 +223,7 @@ export default function ShopPage() {
                         e.stopPropagation();
                         toggleFavorite(product.id);
                       }}
-                      className="absolute top-4 right-4 bg-white rounded-full p-2.5 hover:bg-primary hover:text-white transition-all shadow-lg"
+                      className="absolute top-4 right-4 bg-white rounded-full p-2.5 hover:bg-red-400 hover:text-white transition-all shadow-lg"
                     >
                       <Heart
                         className={`w-5 h-5 ${
@@ -233,12 +233,6 @@ export default function ShopPage() {
                       />
                     </button>
 
-                    {/* Quick View Overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <button className="bg-primary text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-primary/90 shadow-lg transform -translate-y-2 group-hover:translate-y-0 transition-transform">
-                        Quick View
-                      </button>
-                    </div>
                   </div>
 
                   {/* Product Info */}

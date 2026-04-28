@@ -6,7 +6,7 @@ import { useCart } from '@/lib/cart-context';
 import { PageHeader } from '@/components/page-header';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { initialProductReviews, mockProducts } from '@/lib/mock-data/index';
-import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown, Package } from 'lucide-react';
+import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown, Package, X } from 'lucide-react';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -21,6 +21,7 @@ export default function ProductDetailPage() {
   const [reviewText, setReviewText] = useState('');
   const [reviews, setReviews] = useState(initialProductReviews);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
   const [relatedTypeFilter, setRelatedTypeFilter] = useState('all');
 
   useEffect(() => {
@@ -86,6 +87,7 @@ export default function ProductDetailPage() {
         .map((p) => p.image),
     ])
   ).slice(0, 3);
+  const selectedImage = productImageOptions[selectedImageIndex] ?? product.image;
 
   const rawRelatedProducts = mockProducts.filter((p) => p.id !== product.id);
   const relatedTypeOptions = Array.from(new Set(rawRelatedProducts.map((p) => p.category)));
@@ -134,13 +136,18 @@ export default function ProductDetailPage() {
             {/* Product Images */}
             <div className="space-y-4">
               {/* Main Image */}
-              <div className="aspect-square bg-gradient-to-br from-white to-gray-50 rounded-3xl overflow-hidden flex items-center justify-center border border-gray-200 hover:border-primary/30 transition-colors shadow-md hover:shadow-xl">
+              <button
+                type="button"
+                onClick={() => setIsImagePreviewOpen(true)}
+                className="aspect-square w-full cursor-zoom-in overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 shadow-md transition-colors hover:border-primary/30 hover:shadow-xl"
+                aria-label={`Preview ${product.name} image`}
+              >
                 <img
-                  src={productImageOptions[selectedImageIndex] ?? product.image}
+                  src={selectedImage}
                   alt={product.name}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
-              </div>
+              </button>
 
               {/* Image Option Buttons */}
               <div className="grid grid-cols-3 gap-3">
@@ -587,6 +594,33 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {isImagePreviewOpen && (
+          <div className="fixed inset-0 z-[70]">
+            <button
+              aria-label="Close image preview"
+              className="absolute inset-0 cursor-pointer bg-black/85"
+              type="button"
+              onClick={() => setIsImagePreviewOpen(false)}
+            />
+            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
+              <button
+                onClick={() => setIsImagePreviewOpen(false)}
+                className="absolute right-4 top-4 z-10 cursor-pointer rounded-full bg-black/55 p-2 text-white transition hover:bg-black/75"
+                type="button"
+                aria-label="Close image preview"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <img
+                src={selectedImage}
+                alt={product.name}
+                className="max-h-[95vh] w-auto max-w-[96vw] object-contain"
+              />
+            </div>
+          </div>
+        )}
       </div>
   );
 }
