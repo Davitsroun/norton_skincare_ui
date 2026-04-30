@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import {
+  getProfileAction,
   updatePasswordAction,
   updateProfileAction,
   uploadProfileImageAction,
@@ -19,6 +20,8 @@ import {
   User,
   Phone,
   MapPin,
+  Calendar,
+  Users,
   Edit2,
   Check,
   X,
@@ -71,6 +74,35 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
     });
   }, [user?.firstName, user?.lastName, user?.email, user?.imageUrl]);
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    let isActive = true;
+
+    void (async () => {
+      const result = await getProfileAction();
+      if (!isActive || !result.success || !result.profile) {
+        return;
+      }
+
+      const profile = result.profile;
+      setFormData((prev) => {
+        const next = {
+          ...prev,
+          ...profile,
+          imageUrl: profile.imageUrl || prev.imageUrl,
+        };
+        return isSameProfileFormData(prev, next) ? prev : next;
+      });
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.id]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -85,6 +117,10 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
+      phone: formData.phone,
+      address: formData.address,
+      dateOfBirth: formData.dateOfBirth,
+      gender: formData.gender,
     });
 
     setIsProfileSaving(false);
@@ -104,7 +140,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
       email: formData.email,
     });
     setIsEditing(false);
-    setProfileSuccess('Profile updated successfully.');
+    // setProfileSuccess('Profile updated successfully.');
     showToast({
       header: 'Profile Updated',
       message: 'Your profile was updated in Keycloak.',
@@ -243,6 +279,8 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
     variant === 'standalone'
       ? 'max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'
       : 'max-w-4xl mx-auto';
+  const profileFieldIconClass =
+    'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15';
 
   return (
     <>
@@ -397,7 +435,9 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                           <div>
                             <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 mb-2">
-                              <span className="text-primary">👤</span>
+                              <span className={profileFieldIconClass}>
+                                <User className="h-4 w-4" />
+                              </span>
                               Full Name
                             </label>
                             {isEditing ? (
@@ -415,7 +455,9 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
 
                           <div>
                             <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 mb-2">
-                              <Mail className="w-4 h-4 text-primary" />
+                              <span className={profileFieldIconClass}>
+                                <Mail className="h-4 w-4" />
+                              </span>
                               Email
                             </label>
                             {isEditing ? (
@@ -433,7 +475,9 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
 
                           <div>
                             <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 mb-2">
-                              <Phone className="w-4 h-4 text-primary" />
+                              <span className={profileFieldIconClass}>
+                                <Phone className="h-4 w-4" />
+                              </span>
                               Phone Number
                             </label>
                             {isEditing ? (
@@ -445,30 +489,40 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                               />
                             ) : (
-                              <p className="text-gray-900 font-medium">{formData.phone}</p>
+                              <p className="text-gray-900 font-medium">{formData.phone || 'N/A'}</p>
                             )}
                           </div>
 
                           <div>
                             <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 mb-2">
-                              <span className="text-primary">⚧</span>
+                              <span className={profileFieldIconClass}>
+                                <Users className="h-4 w-4" />
+                              </span>
                               Gender
                             </label>
                             {isEditing ? (
-                              <input
-                                type="text"
-                                value="Male"
-                                readOnly
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                              />
+                              <select
+                                name="gender"
+                                value={formData.gender}
+                                onChange={(event) =>
+                                  setFormData((prev) => ({ ...prev, gender: event.target.value }))
+                                }
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                              >
+                                <option value="">Select gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                              </select>
                             ) : (
-                              <p className="text-gray-900 font-medium">Male</p>
+                              <p className="text-gray-900 font-medium">{formData.gender || 'N/A'}</p>
                             )}
                           </div>
 
                           <div>
                             <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 mb-2">
-                              <MapPin className="w-4 h-4 text-primary" />
+                              <span className={profileFieldIconClass}>
+                                <MapPin className="h-4 w-4" />
+                              </span>
                               Place of Birth
                             </label>
                             {isEditing ? (
@@ -480,22 +534,29 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                               />
                             ) : (
-                              <p className="text-gray-900 font-medium">{formData.address}</p>
+                              <p className="text-gray-900 font-medium">{formData.address || 'N/A'}</p>
                             )}
                           </div>
 
                           <div>
                             <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 mb-2">
-                              <span className="text-primary">📅</span>
+                              <span className={profileFieldIconClass}>
+                                <Calendar className="h-4 w-4" />
+                              </span>
                               Date of Birth
                             </label>
                             {isEditing ? (
                               <input
                                 type="date"
+                                name="dateOfBirth"
+                                value={formData.dateOfBirth || 'N/A'}
+                                onChange={handleChange}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                               />
                             ) : (
-                              <p className="text-gray-900 font-medium">March 7, 2002</p>
+                              <p className="text-gray-900 font-medium">
+                                {formData.dateOfBirth || 'N/A'}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -646,7 +707,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
             className="hidden"
           />
 
-          <div className="mt-8 bg-primary/10 border border-primary/20 rounded-lg p-6">
+          {/* <div className="mt-8 bg-primary/10 border border-primary/20 rounded-lg p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-6">Account Statistics</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div className="text-center">
@@ -662,7 +723,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                 <p className="text-2xl font-bold text-primary">1,250</p>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 

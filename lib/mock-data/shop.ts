@@ -1,20 +1,61 @@
 import type { Product, ProductReview } from './types';
 
+function slugLabel(label: string): string {
+  return label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/** Aligned with `category` seed (category_id / category_name). */
 export const shopCategories = [
   { id: 'all', label: 'All Products' },
-  { id: 'tinctures', label: 'Tinctures' },
-  { id: 'softgels', label: 'Softgels' },
-  { id: 'gummies', label: 'Gummies' },
-  { id: 'pet-treats', label: 'Pet Treats' },
-  { id: 'oils', label: 'Oils' },
-  { id: 'creams', label: 'Creams' },
+  { id: '11111111-1111-1111-1111-111111111111', label: 'Cleanser' },
+  { id: '11111111-1111-1111-1111-111111111112', label: 'Toner' },
+  { id: '11111111-1111-1111-1111-111111111113', label: 'Serum' },
+  { id: '11111111-1111-1111-1111-111111111114', label: 'Moisturizer' },
+  { id: '11111111-1111-1111-1111-111111111115', label: 'Sunscreen' },
+  { id: '11111111-1111-1111-1111-111111111116', label: 'Exfoliant' },
+  { id: '11111111-1111-1111-1111-111111111117', label: 'Mask' },
 ] as const;
 
+/** Map API category (UUID id or category name) to the shop filter id (UUID). */
+export function normalizeProductCategoryKey(raw: string): string {
+  const s = String(raw).trim();
+  if (!s) {
+    return '';
+  }
+  const lower = s.toLowerCase();
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  if (uuidRe.test(lower)) {
+    return lower;
+  }
+  const slug = slugLabel(s);
+  const match = shopCategories.find((c) => c.id !== 'all' && slugLabel(c.label) === slug);
+  return match?.id ?? slug;
+}
+
+/** Human label for product cards / headers (handles UUID keys from the API). */
+export function getCategoryDisplayLabel(categoryKey: string): string {
+  if (!categoryKey) {
+    return '';
+  }
+  const byId = shopCategories.find((c) => c.id === categoryKey);
+  if (byId) {
+    return byId.label;
+  }
+  const slugMatch = shopCategories.find((c) => c.id !== 'all' && slugLabel(c.label) === categoryKey);
+  if (slugMatch) {
+    return slugMatch.label;
+  }
+  return categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1).replace(/-/g, ' ');
+}
+
 export const shopSortOptions = [
-  { value: 'featured', label: 'Featured' },
+  { value: 'all-price', label: 'All Price' },
   { value: 'price-low', label: 'Price: Low to High' },
   { value: 'price-high', label: 'Price: High to Low' },
-  { value: 'rating', label: 'Highest Rated' },
 ] as const;
 
 export const mockProducts: Product[] = [

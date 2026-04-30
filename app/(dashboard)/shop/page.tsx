@@ -3,48 +3,106 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
-import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockProducts, shopCategories, shopSortOptions } from '@/lib/mock-data/index';
+import { mockProducts, shopCategories, shopSortOptions, getCategoryDisplayLabel } from '@/lib/mock-data/index';
 import { PageHeader } from '@/components/page-header';
 import { Heart, Star, ShoppingCart, ChevronDown, Search, Store } from 'lucide-react';
+import { getProductAction } from '@/actions/product-action';
+import type { Product } from '@/lib/mock-data/types';
+import { apiItemToProduct } from '@/lib/product-utils';
+
+const PAGE_SIZE = 8;
+/** Product list query — matches `ProductListFilters` / `minPrice` & `maxPrice` query params */
+const CATALOG_MIN_PRICE = 5;
+const CATALOG_MAX_PRICE = 20;
+
+/** Everything returned from the last catalog fetch */
+type ShopCatalog = {
+  loading: boolean;
+  products: Product[];
+  /** If set, the API controls pagination (page/count). Otherwise we slice `products` in the browser. */
+  serverPaging: { pageCount: number; totalCount: number } | null;
+  /** Shown when we fell back to mock data */
+  fallbackHint: string | null;
+};
+
+function catalogFromServerResponse(
+  res: Awaited<ReturnType<typeof getProductAction>>
+): Pick<ShopCatalog, 'products' | 'serverPaging' | 'fallbackHint'> {
+  if (res.success && res.data && Array.isArray(res.data.items)) {
+    const pr = res.data.paginationResponse;
+    return {
+      products: res.data.items.map(apiItemToProduct),
+      serverPaging: {
+        pageCount: Math.max(1, pr.totalPages),
+        totalCount: pr.totalElements,
+      },
+      fallbackHint: null,
+    };
+  }
+  return {
+    products: mockProducts,
+    serverPaging: null,
+    fallbackHint: res.error ?? 'Could not load catalog',
+  };
+}
 
 export default function ShopPage() {
   const { addToCart } = useCart();
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('featured');
+  const [sortBy, setSortBy] = useState<string>('all-price');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 8;
+  const [catalog, setCatalog] = useState<ShopCatalog>({
+    loading: true,
+    products: [],
+    serverPaging: null,
+    fallbackHint: null,
+  });
 
+  /** Read URL + favorites once on mount */
   useEffect(() => {
-    setIsClient(true);
-    const storedFavorites = localStorage.getItem('favorites');
-    if (storedFavorites) {
-      setFavorites(JSON.parse(storedFavorites));
+    try {
+      const stored = localStorage.getItem('favorites');
+      if (stored) {
+        setFavorites(JSON.parse(stored));
+      }
+    } catch {
+      /* ignore */
     }
-    const search = typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('search')
-      : null;
+    const search = new URLSearchParams(window.location.search).get('search');
     if (search) {
       setSearchQuery(decodeURIComponent(search));
     }
-    const timer = setTimeout(() => setIsPageLoading(false), 800);
-    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, sortBy, searchQuery]);
 
-  if (isPageLoading) {
-    return <SkeletonLoader />;
-  }
+  useEffect(() => {
+    let cancelled = false;
+    setCatalog((c) => ({ ...c, loading: true }));
+
+    void (async () => {
+      const res = await getProductAction(currentPage - 1, PAGE_SIZE, {
+        minPrice: CATALOG_MIN_PRICE,
+        maxPrice: CATALOG_MAX_PRICE,
+      });
+      if (cancelled) {
+        return;
+      }
+      const next = catalogFromServerResponse(res);
+      setCatalog({ loading: false, ...next });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage]);
 
   const toggleFavorite = (productId: string) => {
     const nextFavorites = favorites.includes(productId)
@@ -55,7 +113,7 @@ export default function ShopPage() {
     window.dispatchEvent(new Event('favorites-updated'));
   };
 
-  let filteredProducts = mockProducts;
+  let filteredProducts = catalog.products;
   if (selectedCategory !== 'all') {
     filteredProducts = filteredProducts.filter(
       (p) => p.category === selectedCategory
@@ -68,31 +126,25 @@ export default function ShopPage() {
     );
   }
 
-  // Sort products
+  // Sort products (All Price = server / original order)
   if (sortBy === 'price-low') {
     filteredProducts = [...filteredProducts].sort((a, b) => a.price - b.price);
   } else if (sortBy === 'price-high') {
     filteredProducts = [...filteredProducts].sort((a, b) => b.price - a.price);
-  } else if (sortBy === 'rating') {
-    filteredProducts = [...filteredProducts].sort((a, b) => b.rating - a.rating);
   }
-
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage));
+  const totalPages = catalog.serverPaging
+    ? catalog.serverPaging.pageCount
+    : Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-  const startIndex = (safeCurrentPage - 1) * productsPerPage;
-  const endIndex = startIndex + productsPerPage;
-  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const paginatedProducts = catalog.serverPaging
+    ? filteredProducts
+    : filteredProducts.slice(startIndex, endIndex);
 
-  if (!isClient) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-secondary/60 via-background to-primary/5">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="mt-4 text-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const displayTotal = catalog.serverPaging
+    ? catalog.serverPaging.totalCount
+    : filteredProducts.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5">
@@ -109,6 +161,16 @@ export default function ShopPage() {
             </>
           }
         />
+
+        {!catalog.loading && catalog.fallbackHint && (
+          <div
+            className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            role="status"
+          >
+            Showing sample products — live catalog did not load ({catalog.fallbackHint}). Check{' '}
+            <code className="rounded bg-amber-100/80 px-1">localhost:8082</code>.
+          </div>
+        )}
 
         {/* Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center">
@@ -131,7 +193,7 @@ export default function ShopPage() {
               className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:border-primary transition-colors"
             >
               <span className="font-medium">
-                {shopCategories.find((c) => c.id === selectedCategory)?.label}
+                {shopCategories.find((c) => c.id === selectedCategory)?.label ?? 'All Products'}
               </span>
               <ChevronDown className={`w-5 h-5 transition-transform ${categoryOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -162,7 +224,7 @@ export default function ShopPage() {
               className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:border-primary transition-colors"
             >
               <span className="font-medium">
-                {shopSortOptions.find((s) => s.value === sortBy)?.label}
+                {shopSortOptions.find((s) => s.value === sortBy)?.label ?? 'All Price'}
               </span>
               <ChevronDown className={`w-5 h-5 transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -188,7 +250,12 @@ export default function ShopPage() {
 
           <div className="flex-1"></div>
           <span className="text-sm text-gray-600 hidden sm:inline">
-            Showing {filteredProducts.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
+            {catalog.serverPaging
+              ? `${paginatedProducts.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}-${Math.min(
+                  currentPage * PAGE_SIZE,
+                  displayTotal
+                )} of ${displayTotal} products`
+              : `Showing ${filteredProducts.length === 0 ? 0 : startIndex + 1}-${Math.min(endIndex, filteredProducts.length)} of ${filteredProducts.length} products`}
           </span>
         </div>
 
@@ -196,7 +263,20 @@ export default function ShopPage() {
           {/* Main Content */}
             {/* Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 mx-15 ">
-              {paginatedProducts.map((product) => (
+              {catalog.loading ? (
+                Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                  <div
+                    key={`sk-${i}`}
+                    className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm animate-pulse"
+                  >
+                    <div className="aspect-square rounded-xl bg-gray-200" />
+                    <div className="mt-4 h-3 w-1/3 rounded bg-gray-200" />
+                    <div className="mt-3 h-4 w-4/5 rounded bg-gray-200" />
+                    <div className="mt-4 h-6 w-1/2 rounded bg-gray-200" />
+                  </div>
+                ))
+              ) : (
+                paginatedProducts.map((product) => (
                 <div
                   key={product.id}
                   className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 hover:border-primary/30"
@@ -238,7 +318,7 @@ export default function ShopPage() {
                   {/* Product Info */}
                   <div className="p-5">
                     <p className="text-xs text-primary font-bold uppercase tracking-widest mb-2">
-                      {product.category}
+                      {getCategoryDisplayLabel(product.category)}
                     </p>
                     <h3 className="font-bold text-gray-900 mb-3 text-base leading-snug line-clamp-2">
                       {product.name}
@@ -292,9 +372,10 @@ export default function ShopPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
-            {totalPages > 1 && (
+            {!catalog.loading && totalPages > 1 && (
               <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"

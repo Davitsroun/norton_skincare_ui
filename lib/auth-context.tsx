@@ -137,6 +137,12 @@ export function useAuth() {
     ? overridesContext.overridesByUserId[sessionUser.id]
     : undefined;
 
+  useEffect(() => {
+    if (data?.keycloakNeedsSignIn) {
+      void nextAuthSignOut({ callbackUrl: '/' });
+    }
+  }, [data?.keycloakNeedsSignIn, data]);
+
   const user = sessionUser
     ? {
         ...sessionUser,

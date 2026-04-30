@@ -200,6 +200,10 @@ export async function updateUserProfileById(
     lastName?: string;
     email?: string;
     imageUrl?: string;
+    phoneNumber?: string;
+    placeofBirth?: string;
+    dateofBirth?: string;
+    gender?: string;
     username?: string;
   }
 ) {
@@ -211,6 +215,18 @@ export async function updateUserProfileById(
 
   if (data.imageUrl !== undefined) {
     attributes.imageUrl = [data.imageUrl];
+  }
+  if (data.phoneNumber !== undefined) {
+    attributes.phoneNumber = [data.phoneNumber];
+  }
+  if (data.placeofBirth !== undefined) {
+    attributes.placeofBirth = [data.placeofBirth];
+  }
+  if (data.dateofBirth !== undefined) {
+    attributes.dateofBirth = [data.dateofBirth];
+  }
+  if (data.gender !== undefined) {
+    attributes.gender = [data.gender];
   }
 
   const response = await fetch(`${adminUsersEndpoint}/${encodeURIComponent(userId)}`, {

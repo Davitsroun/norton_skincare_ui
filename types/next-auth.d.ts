@@ -9,6 +9,8 @@ declare module 'next-auth' {
       username?: string;
     };
     keycloakToken?: string;
+    /** Session present but Keycloak tokens missing or refresh failed — sign in again */
+    keycloakNeedsSignIn?: boolean;
   }
 }
 
@@ -17,6 +19,8 @@ declare module 'next-auth/jwt' {
     roles?: string[];
     isAdmin?: boolean;
     keycloakToken?: string;
+    refreshToken?: string;
+    keycloakSessionExpired?: boolean;
     preferredUsername?: string;
     imageUrl?: string;
   }
