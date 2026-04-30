@@ -9,6 +9,7 @@ import { Heart, Star, ShoppingCart, ChevronDown, Search, Store } from 'lucide-re
 import { getProductAction } from '@/actions/product-action';
 import type { Product } from '@/lib/mock-data/types';
 import { apiItemToProduct } from '@/lib/product-utils';
+import { useModernToast } from '@/components/modern-toast';
 
 const PAGE_SIZE = 8;
 /** Product list query — matches `ProductListFilters` / `minPrice` & `maxPrice` query params */
@@ -48,6 +49,7 @@ function catalogFromServerResponse(
 
 export default function ShopPage() {
   const { addToCart } = useCart();
+  const { showToast } = useModernToast();
   const router = useRouter();
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -378,6 +380,7 @@ export default function ShopPage() {
 
                     {/* Shop Button */}
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         addToCart({
@@ -386,6 +389,11 @@ export default function ShopPage() {
                           price: product.price,
                           quantity: 1,
                           image: product.image,
+                        });
+                        showToast({
+                          header: 'Added to cart',
+                          message: `${product.name} is in your basket.`,
+                          variant: 'success',
                         });
                       }}
                       className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white py-2.5 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"

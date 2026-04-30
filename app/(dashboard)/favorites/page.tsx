@@ -7,9 +7,11 @@ import { SkeletonLoader } from '@/components/skeleton-loader';
 import { mockProducts } from '@/lib/mock-data/index';
 import { PageHeader } from '@/components/page-header';
 import { Heart, HeartOff, ShoppingCart, Star } from 'lucide-react';
+import { useModernToast } from '@/components/modern-toast';
 
 export default function FavoritesPage() {
   const { addToCart } = useCart();
+  const { showToast } = useModernToast();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -177,6 +179,20 @@ export default function FavoritesPage() {
                   <div className="flex flex-col gap-2">
                     <button
                       type="button"
+                      onClick={() => {
+                        addToCart({
+                          productId: product.id,
+                          name: product.name,
+                          price: product.price,
+                          quantity: 1,
+                          image: product.image,
+                        });
+                        showToast({
+                          header: 'Added to cart',
+                          message: `${product.name} is in your basket.`,
+                          variant: 'success',
+                        });
+                      }}
                       className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 py-2.5 font-semibold text-white shadow-md transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-lg"
                     >
                       <ShoppingCart className="w-4 h-4" />

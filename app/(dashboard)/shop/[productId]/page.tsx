@@ -22,7 +22,7 @@ import {
   updateReviewAction,
 } from '@/actions/review-actions';
 import { createOrderItemAction } from '@/actions/order-actions';
-import { useToast } from '@/hooks/use-toast';
+import { useModernToast } from '@/components/modern-toast';
 import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown, Package, X } from 'lucide-react';
 
 /** Thumbnails from API gallery only; otherwise repeat main image. */
@@ -38,7 +38,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const productId = params.productId as string;
   const { addToCart } = useCart();
-  const { toast } = useToast();
+  const { showToast } = useModernToast();
   const { data: session, status: sessionStatus } = useSession();
 
   const [loading, setLoading] = useState(true);
@@ -158,10 +158,10 @@ export default function ProductDetailPage() {
       return;
     }
     if (sessionStatus !== 'authenticated' || !session?.user) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign in required',
-        description: 'Please sign in to add items.',
+      showToast({
+        header: 'Sign in required',
+        message: 'Please sign in to add items.',
+        variant: 'warning',
       });
       router.push('/login');
       return;
@@ -175,10 +175,10 @@ export default function ProductDetailPage() {
       });
 
       if (!result.success) {
-        toast({
-          variant: 'destructive',
-          title: 'Could not add to cart',
-          description: result.error ?? 'Server rejected this line item.',
+        showToast({
+          header: 'Could not add to cart',
+          message: result.error ?? 'Server rejected this line item.',
+          variant: 'error',
         });
         return;
       }
@@ -190,15 +190,16 @@ export default function ProductDetailPage() {
         quantity,
         image: product.image,
       });
-      toast({
-        title: 'Added to cart',
-        description: `${product.name} (×${quantity}) was saved.`,
+      showToast({
+        header: 'Added to cart',
+        message: `${product.name} (×${quantity}) was added to your basket.`,
+        variant: 'success',
       });
     } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Could not add to cart',
-        description: 'Something went wrong. Please try again.',
+      showToast({
+        header: 'Could not add to cart',
+        message: 'Something went wrong. Please try again.',
+        variant: 'error',
       });
     } finally {
       setAddToCartSubmitting(false);

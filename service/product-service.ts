@@ -248,6 +248,7 @@ export async function getProductByIdService(id: string): Promise<ProductDetailRe
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
+  console.log('response', token);
 
   const raw = await readJsonOrEmpty(response);
   throwIfApiErrorPayload(raw);
