@@ -1,4 +1,4 @@
-// import { apiConfig } from "@/constant/baseurl";
+import { apiBaseUrl } from "@/constant/baseurl";
 
 // export const dashboardRoute = {
 //   getWorkspace: `${apiConfig.baseUrl}/api/workspace`, //use for get workspace
@@ -8,3 +8,7 @@
 // export const boardRoute = {
 //   getTaskByBoardId: (id) => `${apiConfig.baseUrl}/api/task/${id}`, // get bord in spacific workspace
 // };
+
+export const profileRoute = {
+  uploadFile: () => `${apiBaseUrl.baseUrl}/api/v1/files/upload-file`,
+};

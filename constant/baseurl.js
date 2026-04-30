@@ -1,5 +1,5 @@
 export const apiBaseUrl = {
-    baseUrl: 'http://localhost:8080',
+    baseUrl: 'http://localhost:8082',
     // 'prod': 'https://api.example.com'
 };
 

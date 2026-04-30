@@ -16,22 +16,26 @@ export async function proxy(request: NextRequest) {
   const isLoggedIn = Boolean(token);
   const roles = (token?.roles as string[] | undefined) ?? [];
   const isAdmin = roles.includes('admin') || Boolean(token?.isAdmin);
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isPublicAuthPage = publicAuthPages.has(pathname);
 
   if (pathname === '/') {
     return NextResponse.redirect(new URL(isLoggedIn ? (isAdmin ? '/admin' : '/home') : '/login', request.url));
   }
 
-  if (!isLoggedIn && !publicAuthPages.has(pathname)) {
+  if (!isLoggedIn && !isPublicAuthPage) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (pathname.startsWith('/admin')) {
-    if (!isAdmin) {
-      return NextResponse.redirect(new URL('/home', request.url));
-    }
+  if (isLoggedIn && isAdminRoute && !isAdmin) {
+    return NextResponse.redirect(new URL('/home', request.url));
   }
 
-  if (publicAuthPages.has(pathname) && isLoggedIn) {
+  if (isLoggedIn && !isAdminRoute && !isPublicAuthPage && isAdmin) {
+    return NextResponse.redirect(new URL('/admin', request.url));
+  }
+
+  if (isPublicAuthPage && isLoggedIn) {
     return NextResponse.redirect(new URL(isAdmin ? '/admin' : '/home', request.url));
   }
 

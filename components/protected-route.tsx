@@ -5,14 +5,23 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/');
+    if (isLoading) {
+      return;
     }
-  }, [isAuthenticated, isLoading, router]);
+
+    if (!isAuthenticated) {
+      router.push('/');
+      return;
+    }
+
+    if (isAdmin) {
+      router.push('/admin');
+    }
+  }, [isAuthenticated, isLoading, isAdmin, router]);
 
   if (isLoading) {
     return (
@@ -25,7 +34,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isAdmin) {
     return null;
   }
 

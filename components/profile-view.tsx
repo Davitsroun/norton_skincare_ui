@@ -3,6 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import {
+  updatePasswordAction,
+  updateProfileAction,
+  uploadProfileImageAction,
+} from '@/actions/profile-actions';
+import { useModernToast } from '@/components/modern-toast';
+import {
   defaultProfileFormData,
   isSameProfileFormData,
   mapUserToProfileFormData,
@@ -18,6 +24,8 @@ import {
   X,
   Camera,
   KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export type ProfileViewVariant = 'standalone' | 'embedded';
@@ -28,6 +36,7 @@ interface ProfileViewProps {
 
 export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
   const { user, updateProfile } = useAuth();
+  const { showToast } = useModernToast();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit-profile' | 'change-password'>('edit-profile');
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
@@ -37,9 +46,19 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
     newPassword: '',
     confirmPassword: '',
   });
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [formData, setFormData] = useState(defaultProfileFormData);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+  const [isImageUploading, setIsImageUploading] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -57,13 +76,39 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setProfileError('');
+    setProfileSuccess('');
+    setIsProfileSaving(true);
+
+    const result = await updateProfileAction({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+    });
+
+    setIsProfileSaving(false);
+    if (!result.success) {
+      setProfileError(result.error ?? 'Unable to update profile.');
+      showToast({
+        header: 'Profile Update Failed',
+        message: result.error ?? 'Unable to update profile.',
+        variant: 'error',
+      });
+      return;
+    }
+
     updateProfile({
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
     });
     setIsEditing(false);
+    setProfileSuccess('Profile updated successfully.');
+    showToast({
+      header: 'Profile Updated',
+      message: 'Your profile was updated in Keycloak.',
+    });
   };
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +121,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
     }));
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setPasswordError('');
     setPasswordSuccess('');
 
@@ -99,12 +144,40 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
       return;
     }
 
+    setIsPasswordSaving(true);
+    const result = await updatePasswordAction({
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+    });
+    setIsPasswordSaving(false);
+
+    if (!result.success) {
+      setPasswordError(result.error ?? 'Unable to update password.');
+      showToast({
+        header: 'Password Update Failed',
+        message: result.error ?? 'Unable to update password.',
+        variant: 'error',
+      });
+      return;
+    }
+
     setPasswordSuccess('Password changed successfully.');
+    showToast({
+      header: 'Password Updated',
+      message: 'Your Keycloak password was changed successfully.',
+    });
     setPasswordForm({
       currentPassword: '',
       newPassword: '',
       confirmPassword: '',
     });
+  };
+
+  const togglePasswordVisibility = (field: keyof typeof showPasswords) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
   };
 
   const openImagePreview = () => {
@@ -127,16 +200,38 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setFormData((prev) => ({ ...prev, imageUrl: reader.result as string }));
-        updateProfile({
-          imageUrl: reader.result,
+    void (async () => {
+      setProfileError('');
+      setProfileSuccess('');
+      setIsImageUploading(true);
+
+      const formData = new FormData();
+      formData.set('file', file);
+
+      const result = await uploadProfileImageAction(formData);
+      setIsImageUploading(false);
+      event.target.value = '';
+
+      if (!result.success || !result.imageUrl) {
+        setProfileError(result.error ?? 'Unable to upload profile image.');
+        showToast({
+          header: 'Image Upload Failed',
+          message: result.error ?? 'Unable to upload profile image.',
+          variant: 'error',
         });
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+
+      setFormData((prev) => ({ ...prev, imageUrl: result.imageUrl ?? prev.imageUrl }));
+      updateProfile({
+        imageUrl: result.imageUrl,
+      });
+      setProfileSuccess('Profile image updated successfully.');
+      showToast({
+        header: 'Profile Image Updated',
+        message: 'Your image was uploaded and saved in Keycloak.',
+      });
+    })();
   };
 
   const outerClass =
@@ -208,7 +303,11 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                       title="Change profile image"
                       aria-label="Change profile image"
                     >
-                      <Camera className="h-4 w-4" />
+                      {isImageUploading ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
                     </span>
                   </span>
                 </button>
@@ -219,7 +318,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                   </h2>
                 </div>
 
-                {/* {activeTab === 'edit-profile' && (
+                {activeTab === 'edit-profile' && (
                   <button
                     onClick={() => setIsEditing(!isEditing)}
                     className="flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-6 py-2 font-semibold text-white transition-all hover:bg-primary/90"
@@ -237,7 +336,7 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                       </>
                     )}
                   </button>
-                )} */}
+                )}
               </div>
 
               <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-12">
@@ -245,7 +344,10 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                     <button
                       type="button"
-                      onClick={() => setActiveTab('edit-profile')}
+                      onClick={() => {
+                        setActiveTab('edit-profile');
+                        setIsEditing(true);
+                      }}
                       className={`mb-2 flex w-full items-center gap-2 rounded-lg px-4 py-2 text-left text-sm font-semibold transition ${
                         activeTab === 'edit-profile'
                           ? 'bg-primary text-white'
@@ -279,6 +381,17 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                       <h3 className="text-lg font-bold text-gray-900 mb-6 pb-3 border-b-2 border-primary">
                         Personal Information
                       </h3>
+
+                      {profileError && (
+                        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                          {profileError}
+                        </p>
+                      )}
+                      {profileSuccess && (
+                        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+                          {profileSuccess}
+                        </p>
+                      )}
 
                       <div className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
@@ -400,11 +513,12 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                           <div className="flex gap-3 pt-6 border-t border-gray-200 mt-8">
                             <button
                               onClick={handleSave}
+                              disabled={isProfileSaving}
                               className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary/90"
                               type="button"
                             >
                               <Check className="w-5 h-5" />
-                              Save Changes
+                              {isProfileSaving ? 'Saving...' : 'Save Changes'}
                             </button>
                           </div>
                         )}
@@ -421,37 +535,79 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                           <label className="mb-2 block text-sm font-semibold text-gray-700">
                             Current Password
                           </label>
-                          <input
-                            type="password"
-                            name="currentPassword"
-                            value={passwordForm.currentPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.currentPassword ? 'text' : 'password'}
+                              name="currentPassword"
+                              value={passwordForm.currentPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility('currentPassword')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+                              aria-label={showPasswords.currentPassword ? 'Hide current password' : 'Show current password'}
+                            >
+                              {showPasswords.currentPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
                         </div>
                         <div>
                           <label className="mb-2 block text-sm font-semibold text-gray-700">
                             New Password
                           </label>
-                          <input
-                            type="password"
-                            name="newPassword"
-                            value={passwordForm.newPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.newPassword ? 'text' : 'password'}
+                              name="newPassword"
+                              value={passwordForm.newPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility('newPassword')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+                              aria-label={showPasswords.newPassword ? 'Hide new password' : 'Show new password'}
+                            >
+                              {showPasswords.newPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
                         </div>
                         <div>
                           <label className="mb-2 block text-sm font-semibold text-gray-700">
                             Confirm New Password
                           </label>
-                          <input
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordForm.confirmPassword}
-                            onChange={handlePasswordChange}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirmPassword ? 'text' : 'password'}
+                              name="confirmPassword"
+                              value={passwordForm.confirmPassword}
+                              onChange={handlePasswordChange}
+                              className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility('confirmPassword')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+                              aria-label={showPasswords.confirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                            >
+                              {showPasswords.confirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
                         </div>
 
                         {passwordError && (
@@ -468,10 +624,11 @@ export function ProfileView({ variant = 'standalone' }: ProfileViewProps) {
                         <button
                           type="button"
                           onClick={handleChangePassword}
-                          className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary/90"
+                          disabled={isPasswordSaving}
+                          className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <KeyRound className="h-4 w-4" />
-                          Update Password
+                          {isPasswordSaving ? 'Updating...' : 'Update Password'}
                         </button>
                       </div>
                     </>

@@ -21,6 +21,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<LoginResult>;
+  loginWithIdentityProvider: (provider: KeycloakIdentityProvider) => Promise<void>;
   register: (data: RegisterData) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Pick<User, 'firstName' | 'lastName' | 'email' | 'imageUrl' | 'username'>>) => void;
@@ -47,6 +48,8 @@ type LoginResult = {
   success: boolean;
   isAdmin: boolean;
 };
+
+type KeycloakIdentityProvider = 'google' | 'github';
 
 type ProfileOverrides = Partial<
   Pick<User, 'firstName' | 'lastName' | 'email' | 'imageUrl' | 'username'>
@@ -158,6 +161,10 @@ export function useAuth() {
     };
   };
 
+  const loginWithIdentityProvider = async (provider: KeycloakIdentityProvider): Promise<void> => {
+    await signIn(`keycloak-${provider}`, { callbackUrl: '/home' });
+  };
+
   const register = async (data: RegisterData): Promise<RegisterResult> => {
     return registerAction({
       email: data.email,
@@ -193,6 +200,7 @@ export function useAuth() {
     user,
     isLoading: status === 'loading',
     login,
+    loginWithIdentityProvider,
     register,
     logout,
     updateProfile,

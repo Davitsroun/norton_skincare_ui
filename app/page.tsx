@@ -9,16 +9,19 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { loginSchema } from '@/lib/validations/auth';
 
+type SocialProvider = 'google' | 'github';
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   const [isClient, setIsClient] = useState(false);
   const loginInFlightRef = useRef(false);
   const router = useRouter();
-  const { login, isAuthenticated, isAdmin } = useAuth();
+  const { login, loginWithIdentityProvider, isAuthenticated, isAdmin } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
@@ -65,6 +68,26 @@ export default function LoginPage() {
       setErrors({ username: 'Unable to log in with Keycloak. Please try again.' });
       loginInFlightRef.current = false;
       setIsLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: SocialProvider) => {
+    if (loginInFlightRef.current) {
+      return;
+    }
+
+    loginInFlightRef.current = true;
+    setSocialLoading(provider);
+    setErrors({});
+
+    try {
+      await loginWithIdentityProvider(provider);
+    } catch {
+      setErrors({
+        username: `Unable to log in with ${provider === 'google' ? 'Google' : 'GitHub'}. Please try again.`,
+      });
+      loginInFlightRef.current = false;
+      setSocialLoading(null);
     }
   };
 
@@ -161,12 +184,43 @@ export default function LoginPage() {
             {/* Login Button */}
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || Boolean(socialLoading)}
               className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 rounded-full transition-colors h-auto disabled:opacity-50"
             >
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-gray-200" />
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+              Or continue with
+            </span>
+            <div className="h-px flex-1 bg-gray-200" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={Boolean(socialLoading) || isLoading}
+              onClick={() => handleSocialLogin('google')}
+              className="h-auto rounded-full border-2 border-gray-200 bg-white py-3 font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              <GoogleIcon className="h-5 w-5" />
+              {socialLoading === 'google' ? 'Opening...' : 'Google'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={Boolean(socialLoading) || isLoading}
+              onClick={() => handleSocialLogin('github')}
+              className="h-auto rounded-full border-2 border-gray-200 bg-white py-3 font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              <GithubIcon className="h-5 w-5" />
+              {socialLoading === 'github' ? 'Opening...' : 'GitHub'}
+            </Button>
+          </div>
 
           {/* Sign Up Link */}
           <p className="text-center text-gray-600 text-sm mt-8">
@@ -234,5 +288,36 @@ export default function LoginPage() {
       </div>
       </div>
     </div>
+  );
+}
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M21.6 12.23c0-.78-.07-1.53-.2-2.23H12v4.22h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.52z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 4.97-.9 6.62-2.43l-3.24-2.51c-.9.6-2.04.95-3.38.95-2.6 0-4.8-1.76-5.59-4.12H3.06v2.59A10 10 0 0 0 12 22z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.41 13.89A6.01 6.01 0 0 1 6.1 12c0-.66.11-1.3.31-1.89V7.52H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.48l3.35-2.59z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.99c1.47 0 2.79.5 3.82 1.49l2.87-2.87C16.96 3 14.69 2 12 2a10 10 0 0 0-8.94 5.52l3.35 2.59C7.2 7.75 9.4 5.99 12 5.99z"
+      />
+    </svg>
+  );
+}
+
+function GithubIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.48 2 2 6.59 2 12.26c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.37-3.37-1.37-.45-1.19-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.86.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.32 9.32 0 0 1 12 7c.85 0 1.71.12 2.51.35 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.12 10.12 0 0 0 22 12.26C22 6.59 17.52 2 12 2z" />
+    </svg>
   );
 }

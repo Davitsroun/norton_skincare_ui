@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import KeycloakProvider from 'next-auth/providers/keycloak';
 import type { JWT } from 'next-auth/jwt';
 import { isAdminRole } from '@/lib/auth/roles';
 
@@ -76,6 +77,14 @@ function extractRolesFromToken(token: string, clientId?: string): string[] {
   return [...roles];
 }
 
+function logKeycloakTokenOnLogin(provider: string, token?: string) {
+  if (process.env.NODE_ENV !== 'development' || !token) {
+    return;
+  }
+
+  console.log(`[auth] Keycloak token from ${provider}:`, token);
+}
+
 async function authorizeWithKeycloak(
   username: string,
   password: string
@@ -90,6 +99,7 @@ async function authorizeWithKeycloak(
     password,
     scope: 'openid profile email',
   });
+
 
   if (clientSecret) {
     body.set('client_secret', clientSecret);
@@ -123,6 +133,7 @@ async function authorizeWithKeycloak(
 
   const tokenResponse = (await response.json()) as KeycloakTokenResponse;
   const keycloakToken = tokenResponse.access_token ?? tokenResponse.id_token;
+  console.log('Keycloak token:', keycloakToken);
   if (!keycloakToken) {
     return null;
   }
@@ -148,6 +159,32 @@ async function authorizeWithKeycloak(
 export const authOptions: NextAuthOptions = {
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? 'dev-only-secret-change-in-production',
   providers: [
+    KeycloakProvider({
+      id: 'keycloak-google',
+      name: 'Google',
+      clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'oauth-admin-client',
+      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET ?? '',
+      issuer: process.env.KEYCLOAK_ISSUER ?? 'http://localhost:8081/realms/rest-api',
+      authorization: {
+        params: {
+          scope: 'openid email profile',
+          kc_idp_hint: 'google',
+        },
+      },
+    }),
+    KeycloakProvider({
+      id: 'keycloak-github',
+      name: 'GitHub',
+      clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'oauth-admin-client',
+      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET ?? '',
+      issuer: process.env.KEYCLOAK_ISSUER ?? 'http://localhost:8081/realms/rest-api',
+      authorization: {
+        params: {
+          scope: 'openid email profile',
+          kc_idp_hint: 'github',
+        },
+      },
+    }),
     CredentialsProvider({
       id: 'credentials',
       name: 'Keycloak Credentials',
