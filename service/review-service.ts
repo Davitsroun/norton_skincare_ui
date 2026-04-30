@@ -6,44 +6,23 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
 }
 
-type ApiEnvelope<T> = {
-  success?: boolean;
-  message?: string;
-  payload?: T | null;
-};
-
-function assertReviewPayload(p: unknown): ReviewViewResponse {
-  if (!isRecord(p) || typeof p.id !== 'string' || typeof p.userId !== 'string') {
-    throw new Error('Unexpected review response shape');
-  }
-  return p as unknown as ReviewViewResponse;
-}
-
-async function parseReviewMutationResponse(res: Response): Promise<ReviewViewResponse> {
-  const raw: unknown = await res.json().catch(() => ({}));
-  const env = raw as ApiEnvelope<ReviewViewResponse>;
-
+/** API returns `{ success, message?, payload? }`; throws with `message` or status. */
+function reviewEnvelope(res: Response, raw: unknown): ReviewViewResponse {
+  const env = isRecord(raw) ? raw : {};
   if (!res.ok || env.success === false) {
-    const msg = typeof env.message === 'string' ? env.message : `Request failed (${res.status})`;
+    const msg =
+      typeof env.message === 'string'
+        ? env.message
+        : `Request failed (${res.status})`;
     throw new Error(msg);
   }
-
-  if (env.payload == null) {
-    throw new Error(typeof env.message === 'string' ? env.message : 'Empty review payload');
+  const p = env.payload;
+  if (!isRecord(p) || typeof p.id !== 'string' || typeof p.userId !== 'string') {
+    throw new Error(
+      typeof env.message === 'string' ? env.message : 'Unexpected review response'
+    );
   }
-
-  return assertReviewPayload(env.payload);
-}
-
-function authHeaders(token: string | null): Record<string, string> {
-  const h: Record<string, string> = {
-    accept: 'application/json',
-    'content-type': 'application/json',
-  };
-  if (token) {
-    h.Authorization = `Bearer ${token}`;
-  }
-  return h;
+  return p as unknown as ReviewViewResponse;
 }
 
 export async function createReviewService(body: {
@@ -52,17 +31,27 @@ export async function createReviewService(body: {
   comment: string;
 }): Promise<ReviewViewResponse> {
   const token = await getKeycloakToken();
-  const res = await fetch(reviewRoute.reviews, {
+  if (!token) {
+    throw new Error('Sign in required.');
+  }
+
+  const response = await fetch(reviewRoute.reviews, {
     method: 'POST',
     cache: 'no-store',
-    headers: authHeaders(token),
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
       productId: body.productId,
       rating: body.rating,
       comment: body.comment,
     }),
   });
-  return parseReviewMutationResponse(res);
+
+  const raw: unknown = await response.json().catch(() => ({}));
+  return reviewEnvelope(response, raw);
 }
 
 export async function updateReviewService(
@@ -70,6 +59,10 @@ export async function updateReviewService(
   body: { rating?: number; comment?: string }
 ): Promise<ReviewViewResponse> {
   const token = await getKeycloakToken();
+  if (!token) {
+    throw new Error('Sign in required.');
+  }
+
   const payload: Record<string, unknown> = {};
   if (body.rating !== undefined) {
     payload.rating = body.rating;
@@ -78,35 +71,52 @@ export async function updateReviewService(
     payload.comment = body.comment;
   }
 
-  const res = await fetch(reviewRoute.reviewById(id), {
+  const response = await fetch(reviewRoute.reviewById(id), {
     method: 'PUT',
     cache: 'no-store',
-    headers: authHeaders(token),
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(payload),
   });
-  return parseReviewMutationResponse(res);
+
+  const raw: unknown = await response.json().catch(() => ({}));
+  return reviewEnvelope(response, raw);
 }
 
 export async function deleteReviewService(id: string): Promise<void> {
   const token = await getKeycloakToken();
-  const res = await fetch(reviewRoute.reviewById(id), {
+  if (!token) {
+    throw new Error('Sign in required.');
+  }
+
+  const response = await fetch(reviewRoute.reviewById(id), {
     method: 'DELETE',
     cache: 'no-store',
-    headers: authHeaders(token),
+    headers: {
+      accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
   });
 
-  const text = await res.text();
-  let env: ApiEnvelope<null> = {};
-  if (text) {
+  const text = await response.text();
+  let raw: unknown = {};
+  if (text.trim()) {
     try {
-      env = JSON.parse(text) as ApiEnvelope<null>;
+      raw = JSON.parse(text) as unknown;
     } catch {
-      /* ignore */
+      raw = {};
     }
   }
 
-  if (!res.ok || env.success === false) {
-    const msg = typeof env.message === 'string' ? env.message : `Delete failed (${res.status})`;
+  const env = isRecord(raw) ? raw : {};
+  if (!response.ok || env.success === false) {
+    const msg =
+      typeof env.message === 'string'
+        ? env.message
+        : `Delete failed (${response.status})`;
     throw new Error(msg);
   }
 }

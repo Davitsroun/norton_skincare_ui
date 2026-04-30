@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useCart } from '@/lib/cart-context';
 import { PageHeader } from '@/components/page-header';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockProducts, getCategoryDisplayLabel } from '@/lib/mock-data/index';
+import { getCategoryDisplayLabel } from '@/lib/mock-data/index';
 import type { Product } from '@/lib/mock-data/types';
 import {
   apiItemToProduct,
@@ -21,21 +21,16 @@ import {
   deleteReviewAction,
   updateReviewAction,
 } from '@/actions/review-actions';
+import { createOrderItemAction } from '@/actions/order-actions';
+import { useToast } from '@/hooks/use-toast';
 import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown, Package, X } from 'lucide-react';
 
-/** Thumbnails: API gallery or mock same-category images */
+/** Thumbnails from API gallery only; otherwise repeat main image. */
 function thumbnailsForProduct(product: Product, galleryFromApi: string[]): string[] {
   if (galleryFromApi.length > 0) {
     return galleryFromApi.slice(0, 3);
   }
-  return Array.from(
-    new Set([
-      product.image,
-      ...mockProducts
-        .filter((p) => p.category === product.category && p.id !== product.id)
-        .map((p) => p.image),
-    ])
-  ).slice(0, 3);
+  return product.image ? [product.image] : [];
 }
 
 export default function ProductDetailPage() {
@@ -43,6 +38,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const productId = params.productId as string;
   const { addToCart } = useCart();
+  const { toast } = useToast();
   const { data: session, status: sessionStatus } = useSession();
 
   const [loading, setLoading] = useState(true);
@@ -60,6 +56,7 @@ export default function ProductDetailPage() {
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [reviewFormError, setReviewFormError] = useState<string | null>(null);
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [addToCartSubmitting, setAddToCartSubmitting] = useState(false);
 
   const sessionUserId = session?.user?.id ?? '';
 
@@ -87,7 +84,6 @@ export default function ProductDetailPage() {
     setRelatedTypeFilter('all');
 
     (async () => {
-      const fallback = mockProducts.find((p) => p.id === productId) ?? null;
       const res = await getProductByIdAction(productId);
 
       if (cancelled) {
@@ -100,13 +96,9 @@ export default function ProductDetailPage() {
         setGalleryUrls(apiItemGalleryUrls(apiProduct));
         setRelatedList(relateProduct.map(apiItemToProduct));
         setReviews(apiReviews.map(apiReviewToDisplay));
-      } else if (fallback) {
-        setProduct(fallback);
-        setGalleryUrls([]);
-        setRelatedList(mockProducts.filter((p) => p.id !== fallback.id));
-        setReviews([]);
       } else {
         setProduct(null);
+        setGalleryUrls([]);
         setRelatedList([]);
         setReviews([]);
       }
@@ -158,6 +150,59 @@ export default function ProductDetailPage() {
     setFavorites(nextFavorites);
     localStorage.setItem('favorites', JSON.stringify(nextFavorites));
     window.dispatchEvent(new Event('favorites-updated'));
+  };
+
+  /** POST `/api/v1/order-items` (same shape as curl: `{ productId, quantity }`). */
+  const handleAddToCartClick = async () => {
+    if (!product) {
+      return;
+    }
+    if (sessionStatus !== 'authenticated' || !session?.user) {
+      toast({
+        variant: 'destructive',
+        title: 'Sign in required',
+        description: 'Please sign in to add items.',
+      });
+      router.push('/login');
+      return;
+    }
+
+    setAddToCartSubmitting(true);
+    try {
+      const result = await createOrderItemAction({
+        productId: product.id,
+        quantity,
+      });
+
+      if (!result.success) {
+        toast({
+          variant: 'destructive',
+          title: 'Could not add to cart',
+          description: result.error ?? 'Server rejected this line item.',
+        });
+        return;
+      }
+
+      addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity,
+        image: product.image,
+      });
+      toast({
+        title: 'Added to cart',
+        description: `${product.name} (×${quantity}) was saved.`,
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Could not add to cart',
+        description: 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setAddToCartSubmitting(false);
+    }
   };
 
   const startEditReview = (r: ProductReviewDisplay) => {
@@ -386,19 +431,13 @@ export default function ProductDetailPage() {
               {/* Action Buttons */}
               <div className="flex gap-3 mb-8">
                 <button
-                  onClick={() => {
-                    addToCart({
-                      productId: product.id,
-                      name: product.name,
-                      price: product.price,
-                      quantity: quantity,
-                      image: product.image,
-                    });
-                  }}
-                  className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-95"
+                  type="button"
+                  disabled={addToCartSubmitting || sessionStatus === 'loading'}
+                  onClick={() => void handleAddToCartClick()}
+                  className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-95 disabled:pointer-events-none disabled:opacity-60"
                 >
                   <ShoppingCart className="w-5 h-5" />
-                  Add to cart
+                  {addToCartSubmitting ? 'Adding…' : 'Add to cart'}
                 </button>
                 <button
                   onClick={() => toggleFavorite(product.id)}

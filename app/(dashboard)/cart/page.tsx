@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useCart } from '@/lib/cart-context';
 import { createOrderFromCart, saveOrderToHistory } from '@/lib/order-storage';
+import { listOrdersAction } from '@/actions/order-actions';
+import type { Order } from '@/types/order';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { PageHeader } from '@/components/page-header';
-import { Trash2, Plus, Minus, ShoppingBag, X } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, X, Package } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,10 +19,13 @@ import {
 } from '@/components/ui/dialog';
 
 export default function CartPage() {
+  const { status } = useSession();
   const { cartItems, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const [serverOrders, setServerOrders] = useState<Order[]>([]);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'details' | 'payment'>('details');
   const [checkoutForm, setCheckoutForm] = useState({
@@ -32,9 +38,43 @@ export default function CartPage() {
 
   useEffect(() => {
     setIsClient(true);
-    const timer = setTimeout(() => setIsPageLoading(false), 800);
-    return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!isClient || status === 'loading') {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      if (status !== 'authenticated') {
+        setServerOrders([]);
+        setOrdersError(null);
+        if (!cancelled) {
+          setIsPageLoading(false);
+        }
+        return;
+      }
+
+      const result = await listOrdersAction({ page: 0, size: 50 });
+      if (cancelled) {
+        return;
+      }
+      if (result.success && result.data) {
+        setServerOrders(result.data);
+        setOrdersError(null);
+      } else {
+        setServerOrders([]);
+        setOrdersError(result.error ?? 'Could not load orders.');
+      }
+      setIsPageLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isClient, status]);
 
   if (!isClient || isPageLoading) {
     return <SkeletonLoader />;
@@ -113,6 +153,46 @@ export default function CartPage() {
             </>
           }
         />
+
+        {status === 'authenticated' && (ordersError || serverOrders.length > 0) && (
+          <div className="mb-8 rounded-2xl border border-primary/20 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                <Package className="h-5 w-5 text-primary" aria-hidden />
+                Your orders
+              </h2>
+              <button
+                type="button"
+                onClick={() => router.push('/history')}
+                className="text-sm font-semibold text-primary hover:underline"
+              >
+                View full history
+              </button>
+            </div>
+            {ordersError ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                {ordersError}
+              </p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {serverOrders.slice(0, 5).map((order) => (
+                  <li key={order.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                    <div>
+                      <p className="font-semibold text-gray-900">Order {order.id}</p>
+                      <p className="text-gray-500">
+                        {order.date} · {order.status}
+                        {order.items.length > 0
+                          ? ` · ${order.items.map((i) => i.productName).join(', ')}`
+                          : ''}
+                      </p>
+                    </div>
+                    <p className="font-bold text-primary">${order.total.toFixed(2)}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {cartItems.length === 0 ? (
           <div className="bg-gray-50 rounded-lg shadow border border-gray-200 text-center py-16 px-8">
@@ -252,7 +332,7 @@ export default function CartPage() {
               </DialogDescription>
             ) : (
               <DialogDescription className="text-center">
-                Scan this mock QR with your banking app to complete pickup checkout.
+                Scan the KHQR code with your banking app to complete pickup checkout.
               </DialogDescription>
             )}
           </DialogHeader>
@@ -372,7 +452,7 @@ export default function CartPage() {
                   <div className="absolute bottom-3 left-3 h-10 w-10 rounded-sm border-4 border-black bg-white" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="rounded bg-black px-2 py-1 text-xs font-bold text-white tracking-wider">
-                      KHQR MOCK
+                      KHQR
                     </span>
                   </div>
                 </div>

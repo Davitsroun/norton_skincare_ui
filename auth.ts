@@ -98,12 +98,12 @@ function extractRolesFromToken(token: string, clientId?: string): string[] {
   return [...roles];
 }
 
-function logKeycloakTokenOnLogin(provider: string, token?: string) {
-  if (process.env.NODE_ENV !== 'development' || !token) {
+function logKeycloakTokenOnLogin(provider: string) {
+  if (process.env.NODE_ENV !== 'development') {
     return;
   }
 
-  console.log(`[auth] Keycloak token from ${provider}:`, token);
+  console.log(`[auth] Keycloak sign-in via ${provider}`);
 }
 
 async function authorizeWithKeycloak(
@@ -154,7 +154,6 @@ async function authorizeWithKeycloak(
 
   const tokenResponse = (await response.json()) as KeycloakTokenResponse;
   const keycloakToken = tokenResponse.access_token ?? tokenResponse.id_token;
-  console.log('Keycloak token:', keycloakToken);
   if (!keycloakToken) {
     return null;
   }
@@ -333,7 +332,7 @@ export const authOptions: NextAuthOptions = {
 
       if (account?.access_token || account?.id_token) {
         token.keycloakToken = account.access_token ?? account.id_token;
-        logKeycloakTokenOnLogin(account.provider ?? 'keycloak-oauth', token.keycloakToken);
+        logKeycloakTokenOnLogin(account.provider ?? 'keycloak-oauth');
       }
       if (typeof account?.refresh_token === 'string' && account.refresh_token.length > 0) {
         token.refreshToken = account.refresh_token;

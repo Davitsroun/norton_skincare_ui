@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
-import { mockProducts, shopCategories, shopSortOptions, getCategoryDisplayLabel } from '@/lib/mock-data/index';
+import { shopCategories, shopSortOptions, getCategoryDisplayLabel } from '@/lib/mock-data/index';
 import { PageHeader } from '@/components/page-header';
 import { Heart, Star, ShoppingCart, ChevronDown, Search, Store } from 'lucide-react';
 import { getProductAction } from '@/actions/product-action';
@@ -21,13 +21,13 @@ type ShopCatalog = {
   products: Product[];
   /** If set, the API controls pagination (page/count). Otherwise we slice `products` in the browser. */
   serverPaging: { pageCount: number; totalCount: number } | null;
-  /** Shown when we fell back to mock data */
-  fallbackHint: string | null;
+  /** Present when the catalog API failed (no placeholder products shown). */
+  loadError: string | null;
 };
 
 function catalogFromServerResponse(
   res: Awaited<ReturnType<typeof getProductAction>>
-): Pick<ShopCatalog, 'products' | 'serverPaging' | 'fallbackHint'> {
+): Pick<ShopCatalog, 'products' | 'serverPaging' | 'loadError'> {
   if (res.success && res.data && Array.isArray(res.data.items)) {
     const pr = res.data.paginationResponse;
     return {
@@ -36,13 +36,13 @@ function catalogFromServerResponse(
         pageCount: Math.max(1, pr.totalPages),
         totalCount: pr.totalElements,
       },
-      fallbackHint: null,
+      loadError: null,
     };
   }
   return {
-    products: mockProducts,
+    products: [],
     serverPaging: null,
-    fallbackHint: res.error ?? 'Could not load catalog',
+    loadError: res.error ?? 'Could not load catalog',
   };
 }
 
@@ -56,11 +56,12 @@ export default function ShopPage() {
   const [sortOpen, setSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [catalogReload, setCatalogReload] = useState(0);
   const [catalog, setCatalog] = useState<ShopCatalog>({
     loading: true,
     products: [],
     serverPaging: null,
-    fallbackHint: null,
+    loadError: null,
   });
 
   /** Read URL + favorites once on mount */
@@ -102,7 +103,7 @@ export default function ShopPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentPage]);
+  }, [currentPage, catalogReload]);
 
   const toggleFavorite = (productId: string) => {
     const nextFavorites = favorites.includes(productId)
@@ -162,13 +163,24 @@ export default function ShopPage() {
           }
         />
 
-        {!catalog.loading && catalog.fallbackHint && (
+        {!catalog.loading && catalog.loadError && (
           <div
-            className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-            role="status"
+            className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
+            role="alert"
           >
-            Showing sample products — live catalog did not load ({catalog.fallbackHint}). Check{' '}
-            <code className="rounded bg-amber-100/80 px-1">localhost:8082</code>.
+            <p className="font-medium">Could not load products from the catalog.</p>
+            <p className="mt-1 text-red-800">{catalog.loadError}</p>
+            <p className="mt-2 text-xs text-red-700/90">
+              Ensure the API is running (e.g.{' '}
+              <code className="rounded bg-red-100 px-1">localhost:8082</code>).{' '}
+              <button
+                type="button"
+                onClick={() => setCatalogReload((n) => n + 1)}
+                className="font-semibold underline underline-offset-2 hover:text-red-950"
+              >
+                Try again
+              </button>
+            </p>
           </div>
         )}
 
@@ -275,8 +287,19 @@ export default function ShopPage() {
                     <div className="mt-4 h-6 w-1/2 rounded bg-gray-200" />
                   </div>
                 ))
+              ) : paginatedProducts.length === 0 ? (
+                <div className="col-span-full rounded-2xl border border-gray-200 bg-white py-16 text-center shadow-sm">
+                  <Store className="mx-auto mb-4 h-12 w-12 text-gray-300" aria-hidden />
+                  <p className="text-lg font-semibold text-gray-900">No products to show</p>
+                  <p className="mt-2 max-w-md mx-auto text-sm text-gray-600">
+                    {catalog.loadError
+                      ? 'Fix the catalog connection above, then retry.'
+                      : 'No items match your filters — try adjusting search or category.'}
+                  </p>
+                </div>
               ) : (
-                paginatedProducts.map((product) => (
+                <>
+                  {paginatedProducts.map((product) => (
                 <div
                   key={product.id}
                   className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 hover:border-primary/30"
@@ -372,7 +395,8 @@ export default function ShopPage() {
                     </button>
                   </div>
                 </div>
-                ))
+                  ))}
+                </>
               )}
             </div>
             {!catalog.loading && totalPages > 1 && (

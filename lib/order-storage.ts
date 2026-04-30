@@ -1,5 +1,5 @@
 import type { CartItem } from '@/lib/cart-context';
-import type { Order } from '@/lib/mock-data/types';
+import type { Order } from '@/types/order';
 
 const ORDER_STORAGE_KEY = 'customer_order_history';
 

@@ -181,6 +181,32 @@ function apiItemLooksValid(v: unknown): boolean {
   return isRecord(v) && typeof v.id === 'string' && typeof v.name === 'string';
 }
 
+/** Backend sometimes returns 200 with `{ error: string }` or `{ success: false, message }`. */
+function throwIfApiErrorPayload(raw: unknown): void {
+  if (!isRecord(raw)) {
+    return;
+  }
+  if (typeof raw.error === 'string' && raw.error.trim() !== '') {
+    throw new Error(raw.error);
+  }
+  if (raw.success === false) {
+    const msg = typeof raw.message === 'string' ? raw.message : 'Request failed.';
+    throw new Error(msg);
+  }
+}
+
+async function readJsonOrEmpty(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text.trim()) {
+    return {};
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return {};
+  }
+}
+
 export async function getProductService(
   page: number,
   size: number,
@@ -189,23 +215,24 @@ export async function getProductService(
   const url = productRoute.getProduct(page, size, filters);
   const token = await getKeycloakToken();
 
-  const headers: Record<string, string> = {
-    accept: 'application/json',
-  };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   const response = await fetch(url, {
     cache: 'no-store',
-    headers,
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
 
+  const raw = await readJsonOrEmpty(response);
+  throwIfApiErrorPayload(raw);
+
   if (!response.ok) {
-    throw new Error(`Products request failed (${response.status})`);
+    const hint =
+      isRecord(raw) && typeof raw.error === 'string' ? raw.error : null;
+    throw new Error(hint ?? `Products request failed (${response.status})`);
   }
 
-  const raw: unknown = await response.json();
   return normalizeProductListPayload(raw);
 }
 
@@ -213,24 +240,24 @@ export async function getProductByIdService(id: string): Promise<ProductDetailRe
   const url = productRoute.getProductById(id);
   const token = await getKeycloakToken();
 
-  const headers: Record<string, string> = {
-    accept: 'application/json',
-  };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   const response = await fetch(url, {
     cache: 'no-store',
     method: 'GET',
-    headers,
+    headers: {
+      accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
 
+  const raw = await readJsonOrEmpty(response);
+  throwIfApiErrorPayload(raw);
+
   if (!response.ok) {
-    throw new Error(`Product by id request failed (${response.status})`);
+    const hint =
+      isRecord(raw) && typeof raw.error === 'string' ? raw.error : null;
+    throw new Error(hint ?? `Product by id request failed (${response.status})`);
   }
 
-  const raw: unknown = await response.json();
   return parseProductDetailResponse(raw);
 }
 

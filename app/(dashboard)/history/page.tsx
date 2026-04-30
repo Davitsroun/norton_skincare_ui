@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { ProtectedRoute } from '@/components/protected-route';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { mockOrderHistory } from '@/lib/mock-data/index';
-import type { Order } from '@/lib/mock-data/types';
+import type { Order } from '@/types/order';
 import { getStoredOrders } from '@/lib/order-storage';
 import { ChevronDown, Package } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
