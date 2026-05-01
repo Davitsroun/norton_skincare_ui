@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Menu, X, ShoppingCart, Search } from 'lucide-react';
+import { Menu, ShoppingCart, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useCart } from '@/lib/cart-context';
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const { cartCount } = useCart();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background">
@@ -50,7 +52,11 @@ export function Header() {
             </div>
             <Button variant="ghost" size="icon" className="relative">
               <ShoppingCart className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-2 w-2 bg-primary rounded-full" />
+              {cartCount > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
             </Button>
           </div>
 
@@ -61,7 +67,11 @@ export function Header() {
             </Button>
             <Button variant="ghost" size="icon" className="relative">
               <ShoppingCart className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-2 w-2 bg-primary rounded-full" />
+              {cartCount > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
             </Button>
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>

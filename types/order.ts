@@ -2,6 +2,8 @@
 
 export interface OrderItem {
   id: string;
+  /** From API `product.productId` when present — needed for PUT /order-items */
+  productId?: string;
   productName: string;
   quantity: number;
   price: number;

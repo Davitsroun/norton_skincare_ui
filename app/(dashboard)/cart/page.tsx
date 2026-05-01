@@ -1,12 +1,28 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useCart } from '@/lib/cart-context';
 import { createOrderFromCart, saveOrderToHistory } from '@/lib/order-storage';
-import { listOrdersAction } from '@/actions/order-actions';
-import type { Order } from '@/types/order';
+import {
+  deleteOrderItemAction,
+  listOrdersAction,
+  updateOrderItemAction,
+} from '@/actions/order-actions';
+import { useModernToast } from '@/components/modern-toast';
+import { apiBaseUrl } from '@/constant/baseurl';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import type { Order, OrderItem } from '@/types/order';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { PageHeader } from '@/components/page-header';
 import { Trash2, Plus, Minus, ShoppingBag, X, Package } from 'lucide-react';
@@ -20,6 +36,7 @@ import {
 
 export default function CartPage() {
   const { status } = useSession();
+  const { showToast } = useModernToast();
   const { cartItems, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
@@ -35,6 +52,25 @@ export default function CartPage() {
     deliveryAddress: '',
   });
   const [formError, setFormError] = useState('');
+  const [syncingLineId, setSyncingLineId] = useState<string | null>(null);
+  const [pendingAccountLineDelete, setPendingAccountLineDelete] = useState<{
+    id: string;
+    productName: string;
+  } | null>(null);
+  const [confirmAccountDeleteBusy, setConfirmAccountDeleteBusy] = useState(false);
+
+  const reloadServerOrders = useCallback(async () => {
+    const result = await listOrdersAction({ page: 0, size: 50 });
+    if (result.success && result.data) {
+      setServerOrders(result.data);
+      setOrdersError(null);
+    } else {
+      setOrdersError(result.error ?? 'Could not load orders.');
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('cart-orders-synced'));
+    }
+  }, []);
 
   useEffect(() => {
     setIsClient(true);
@@ -57,7 +93,8 @@ export default function CartPage() {
         return;
       }
 
-      const result = await listOrdersAction({ page: 0, size: 50 });
+      const result = await listOrdersAction({ page: 0, size: 50 }); 
+      console.log('result', result);
       if (cancelled) {
         return;
       }
@@ -69,6 +106,9 @@ export default function CartPage() {
         setOrdersError(result.error ?? 'Could not load orders.');
       }
       setIsPageLoading(false);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('cart-orders-synced'));
+      }
     })();
 
     return () => {
@@ -114,11 +154,102 @@ export default function CartPage() {
       : '0 items in your cart';
 
   const summarySubtotal = summaryUsesAccountTotal ? accountLinesSubtotal : cartTotal;
+  /** Order total returned by GET /orders (includes tax/discount versus line sum only when syncing from API). */
   const grossFromApi = summaryUsesAccountTotal ? (latestAccountOrder?.total ?? 0) : 0;
-  const summaryTax = summaryUsesAccountTotal
+  const summaryFeesFromApi = summaryUsesAccountTotal
     ? Math.max(0, Math.round((grossFromApi - accountLinesSubtotal) * 100) / 100)
-    : cartTotal * 0.1;
-  const summaryGrandTotal = summaryUsesAccountTotal ? grossFromApi : cartTotal * 1.1;
+    : 0;
+  const summaryGrandTotal = summaryUsesAccountTotal ? grossFromApi : summarySubtotal;
+
+  const removeAccountOrderLine = useCallback(
+    async (orderItemId: string): Promise<boolean> => {
+      if (status !== 'authenticated') {
+        return false;
+      }
+      setSyncingLineId(orderItemId);
+      const res = await deleteOrderItemAction(orderItemId);
+      setSyncingLineId(null);
+      if (!res.success) {
+        showToast({
+          header: 'Could not remove item',
+          message: res.error ?? 'Please try again.',
+          variant: 'error',
+        });
+        return false;
+      }
+      await reloadServerOrders();
+      showToast({
+        header: 'Item removed',
+        message: 'The line item was removed from your order.',
+        variant: 'success',
+      });
+      return true;
+    },
+    [status, showToast, reloadServerOrders],
+  );
+
+  const handleConfirmPendingAccountDelete = useCallback(async () => {
+    if (!pendingAccountLineDelete) {
+      return;
+    }
+    setConfirmAccountDeleteBusy(true);
+    try {
+      const ok = await removeAccountOrderLine(pendingAccountLineDelete.id);
+      if (ok) {
+        setPendingAccountLineDelete(null);
+      }
+    } finally {
+      setConfirmAccountDeleteBusy(false);
+    }
+  }, [pendingAccountLineDelete, removeAccountOrderLine]);
+
+  const syncAccountOrderItemQuantity = useCallback(
+    async (line: OrderItem, nextQuantity: number) => {
+      if (status !== 'authenticated') {
+        return;
+      }
+      if (nextQuantity < 1) {
+        setPendingAccountLineDelete({
+          id: line.id,
+          productName: line.productName,
+        });
+        return;
+      }
+      const productId = line.productId;
+      if (!productId) {
+        showToast({
+          header: 'Cannot update quantity',
+          message:
+            'This order line has no product id in the API response — refresh orders or sync your catalog shape.',
+          variant: 'error',
+        });
+        return;
+      }
+      setSyncingLineId(line.id);
+      const res = await updateOrderItemAction(line.id, {
+        orderItemId: line.id,
+        product: { productId },
+        quantity: nextQuantity,
+        price: line.price,
+      });
+      setSyncingLineId(null);
+      if (!res.success) {
+        showToast({
+          header: 'Could not update quantity',
+          message: res.error ?? 'Please try again.',
+          variant: 'error',
+        });
+        return;
+      }
+      await reloadServerOrders();
+      showToast({
+        header: 'Quantity updated',
+        message: `${line.productName} is now ×${nextQuantity}.`,
+        variant: 'success',
+      });
+    },
+    [status, showToast, reloadServerOrders],
+  );
 
   if (!isClient || isPageLoading) {
     return <SkeletonLoader />;
@@ -228,34 +359,75 @@ export default function CartPage() {
                     </div>
                   </div>
                   <p className="mb-4 text-xs text-muted-foreground">
-                    Order {latestAccountOrder.id} · {latestAccountOrder.date}
+                    Order {latestAccountOrder.id} · {latestAccountOrder.date}. Updates and removals use{' '}
+                    <code className="rounded bg-secondary px-1">{apiBaseUrl.baseUrl}/api/v1/order-items</code>.
                   </p>
                   <div className="space-y-4">
-                    {latestAccountOrder.items.map((line) => (
-                      <div
-                        key={line.id}
-                        className="flex gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
-                      >
-                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                          <img
-                            src={line.image}
-                            alt={line.productName}
-                            className="h-full w-full object-cover"
-                          />
+                    {latestAccountOrder.items.map((line) => {
+                      const busy = syncingLineId === line.id;
+                      const canUpdateQty = Boolean(line.productId);
+                      return (
+                        <div
+                          key={line.id}
+                          className="flex gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+                        >
+                          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                            <img
+                              src={line.image}
+                              alt={line.productName}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="mb-2 font-semibold text-gray-900">{line.productName}</h3>
+                            <p className="mb-3 text-lg font-bold text-primary">
+                              ${Number(line.price).toFixed(2)}
+                              <span className="ml-2 text-sm font-normal text-gray-600">each</span>
+                            </p>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                disabled={busy || !canUpdateQty}
+                                title={canUpdateQty ? undefined : 'Product id missing for this line; quantity updates disabled.'}
+                                onClick={() => void syncAccountOrderItemQuantity(line, line.quantity - 1)}
+                                className="rounded p-1 transition-colors hover:bg-gray-100 disabled:opacity-50"
+                                aria-label="Decrease quantity"
+                              >
+                                <Minus className="h-4 w-4 text-gray-600" />
+                              </button>
+                              <span className="w-8 text-center font-semibold text-gray-900">{line.quantity}</span>
+                              <button
+                                type="button"
+                                disabled={busy || !canUpdateQty}
+                                title={canUpdateQty ? undefined : 'Product id missing for this line; quantity updates disabled.'}
+                                onClick={() => void syncAccountOrderItemQuantity(line, line.quantity + 1)}
+                                className="rounded p-1 transition-colors hover:bg-gray-100 disabled:opacity-50"
+                                aria-label="Increase quantity"
+                              >
+                                <Plus className="h-4 w-4 text-gray-600" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex flex-col justify-between text-right">
+                            <p className="font-bold text-gray-900">${(line.price * line.quantity).toFixed(2)}</p>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                setPendingAccountLineDelete({
+                                  id: line.id,
+                                  productName: line.productName,
+                                })
+                              }
+                              className="flex items-center justify-end gap-1 text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Remove
+                            </button>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="mb-2 font-semibold text-gray-900">{line.productName}</h3>
-                          <p className="mb-3 text-lg font-bold text-primary">
-                            ${Number(line.price).toFixed(2)}
-                            <span className="ml-2 text-sm font-normal text-gray-600">each</span>
-                          </p>
-                          <p className="text-sm text-gray-600">Qty {line.quantity}</p>
-                        </div>
-                        <div className="text-right font-bold text-gray-900">
-                          ${(line.price * line.quantity).toFixed(2)}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
               ) : null}
@@ -325,14 +497,28 @@ export default function CartPage() {
                     <span>Subtotal</span>
                     <span>${summarySubtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Shipping</span>
-                    <span className="font-semibold text-green-600">Free</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>{summaryUsesAccountTotal ? 'Adjustments / tax' : 'Tax'}</span>
-                    <span>${summaryTax.toFixed(2)}</span>
-                  </div>
+                  {summaryUsesAccountTotal ? (
+                    <>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Shipping</span>
+                        <span className="font-semibold text-green-600">Free</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Adjustments / tax vs lines</span>
+                        <span>${summaryFeesFromApi.toFixed(2)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Shipping</span>
+                      <span className="text-muted-foreground">—</span>
+                    </div>
+                  )}
+                  {!summaryUsesAccountTotal ? (
+                    <p className="text-xs text-muted-foreground">
+                      Totals reflect your basket only — no estimated tax applied. Final amounts come from checkout / your order API.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="border-b border-gray-200 py-6">
@@ -412,6 +598,37 @@ export default function CartPage() {
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={pendingAccountLineDelete !== null}
+        onOpenChange={(next) => {
+          if (!next && !confirmAccountDeleteBusy) {
+            setPendingAccountLineDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAccountLineDelete
+                ? `“${pendingAccountLineDelete.productName}” will be removed from your latest order. This cannot be undone from here.`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmAccountDeleteBusy}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={confirmAccountDeleteBusy}
+              onClick={() => void handleConfirmPendingAccountDelete()}
+            >
+              {confirmAccountDeleteBusy ? 'Removing…' : 'Remove'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isCheckoutOpen} onOpenChange={closeCheckoutDialog}>
         <DialogContent showCloseButton={false} className="sm:max-w-md">

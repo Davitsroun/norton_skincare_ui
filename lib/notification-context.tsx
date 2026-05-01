@@ -33,35 +33,7 @@ export function useNotification() {
 }
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Product Added to Cart',
-      message: 'Tincture has been added to your cart successfully.',
-      icon: 'shopping-cart',
-      timestamp: new Date(Date.now() - 5 * 60000),
-      read: false,
-      type: 'success',
-    },
-    {
-      id: '2',
-      title: 'New Product Available',
-      message: 'Check out our new Softgels collection now available.',
-      icon: 'package',
-      timestamp: new Date(Date.now() - 30 * 60000),
-      read: false,
-      type: 'info',
-    },
-    {
-      id: '3',
-      title: 'Special Offer',
-      message: '20% off on selected items this weekend only!',
-      icon: 'gift',
-      timestamp: new Date(Date.now() - 2 * 3600000),
-      read: true,
-      type: 'info',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

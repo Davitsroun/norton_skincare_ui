@@ -102,6 +102,17 @@ function mapLineItem(line: Record<string, unknown>): OrderItem | null {
           ? String(product.imageUrl ?? product.image ?? product.coverImage)
           : '';
 
+  const productIdRaw =
+    typeof line.productId === 'string'
+      ? line.productId
+      : product &&
+          (typeof product.productId === 'string' ||
+            typeof product.productId === 'number' ||
+            typeof product.id === 'string' ||
+            typeof product.id === 'number')
+        ? String(product.productId ?? product.id)
+        : undefined;
+
   const id =
     line.id != null
       ? String(line.id)
@@ -113,6 +124,7 @@ function mapLineItem(line: Record<string, unknown>): OrderItem | null {
 
   return {
     id,
+    productId: productIdRaw?.trim() ? productIdRaw : undefined,
     productName,
     quantity,
     price: Math.round(unitPrice * 100) / 100,

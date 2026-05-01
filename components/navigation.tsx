@@ -2,21 +2,42 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useAuth } from '@/lib/auth-context';
-import { useCart } from '@/lib/cart-context';
+import { listOrdersAction } from '@/actions/order-actions';
+import type { Order } from '@/types/order';
 import { Menu, X, LogOut, ShoppingCart, User, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { NotificationCenter } from './notification-center';
 import { LogoutConfirm } from './logout-confirm';
 
+function latestOrderPieceCount(orders: Order[]): number {
+  if (orders.length === 0) {
+    return 0;
+  }
+  const sorted = [...orders].sort((a, b) => {
+    const db = Date.parse(`${b.date}T12:00:00`);
+    const da = Date.parse(`${a.date}T12:00:00`);
+    const safeB = Number.isNaN(db) ? 0 : db;
+    const safeA = Number.isNaN(da) ? 0 : da;
+    return safeB - safeA;
+  });
+  const latest = sorted[0];
+  return latest?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+}
+
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const [favoriteCount, setFavoriteCount] = useState(0);
+  const [serverOrderQtyTotal, setServerOrderQtyTotal] = useState(0);
   const { user, isAuthenticated } = useAuth();
-  const { cartCount } = useCart();
+  const { status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const [ordersListSyncTick, setOrdersListSyncTick] = useState(0);
 
+  /** Total pieces on latest server order only — not local `cart` (avoids stale/offline basket vs empty API). */
+  const cartBadgeCount = serverOrderQtyTotal;
   const navItems = [
     { href: '/home', label: 'Home' },
     { href: '/shop', label: 'Shop' },
@@ -51,6 +72,37 @@ export function Navigation() {
       window.removeEventListener('favorites-updated', refreshFavoriteCount);
     };
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isAuthenticated || status !== 'authenticated') {
+      setServerOrderQtyTotal(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const result = await listOrdersAction({ page: 0, size: 50 });
+      if (cancelled) {
+        return;
+      }
+      if (result.success && result.data?.length) {
+        setServerOrderQtyTotal(latestOrderPieceCount(result.data));
+      } else {
+        setServerOrderQtyTotal(0);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, status, pathname, ordersListSyncTick]);
+
+  useEffect(() => {
+    const bump = () => setOrdersListSyncTick((n) => n + 1);
+    window.addEventListener('cart-orders-synced', bump);
+    return () => window.removeEventListener('cart-orders-synced', bump);
+  }, []);
 
   if (!isAuthenticated) return null;
 
@@ -120,9 +172,9 @@ export function Navigation() {
               aria-label="Shopping cart"
             >
               <ShoppingCart className="h-6 w-5" />
-              {cartCount > 0 && (
+              {cartBadgeCount > 0 && (
                 <span className="absolute right-0 top-0 flex h-4 w-4 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border border-white">
-                  {cartCount}
+                  {cartBadgeCount > 99 ? '99+' : cartBadgeCount}
                 </span>
               )}
             </button>
