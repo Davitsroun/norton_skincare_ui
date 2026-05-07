@@ -1,215 +1,271 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/lib/cart-context';
+import { useSession } from 'next-auth/react';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockProducts } from '@/lib/mock-data/index';
 import { PageHeader } from '@/components/page-header';
-import { Heart, HeartOff, ShoppingCart, Star } from 'lucide-react';
+import { Heart, ShoppingCart } from 'lucide-react';
 import { useModernToast } from '@/components/modern-toast';
+import {
+  deleteFavoriteBrandAction,
+  listFavoriteBrandsAction,
+} from '@/actions/favorite-brand-actions';
+import type { FavoriteBrandListItem } from '@/types/favorite-brand';
 
 export default function FavoritesPage() {
-  const { addToCart } = useCart();
   const { showToast } = useModernToast();
   const router = useRouter();
+  const { status } = useSession();
   const [isClient, setIsClient] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(true);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<FavoriteBrandListItem[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadFavorites = useCallback(async () => {
+    if (status !== 'authenticated') {
+      setRows([]);
+      setErrorMessage(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setErrorMessage(null);
+    const res = await listFavoriteBrandsAction({ page: 0, size: 50 });
+    if (!res.success) {
+      setRows([]);
+      setErrorMessage(res.error ?? 'Could not load favorites.');
+      setLoading(false);
+      return;
+    }
+    setRows(res.data ?? []);
+    setLoading(false);
+  }, [status]);
 
   useEffect(() => {
     setIsClient(true);
-    const storedFavorites = localStorage.getItem('favorites');
-    if (storedFavorites) {
-      setFavorites(JSON.parse(storedFavorites));
-    }
-    const timer = setTimeout(() => setIsPageLoading(false), 800);
-    return () => clearTimeout(timer);
   }, []);
 
-  if (!isClient || isPageLoading) {
+  useEffect(() => {
+    if (!isClient || status === 'loading') {
+      return;
+    }
+    void loadFavorites();
+  }, [isClient, status, loadFavorites]);
+
+  const removeFavorite = async (row: FavoriteBrandListItem) => {
+    const res = await deleteFavoriteBrandAction(row.favoriteBrandId);
+    if (!res.success) {
+      showToast({
+        header: 'Could not remove',
+        message: res.error ?? 'Please try again.',
+        variant: 'error',
+      });
+      return;
+    }
+    showToast({
+      header: 'Removed',
+      message: 'Brand removed from your favorites.',
+      variant: 'success',
+    });
+    await loadFavorites();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('favorite-brands-updated'));
+    }
+  };
+
+  if (!isClient || status === 'loading') {
     return <SkeletonLoader />;
   }
 
-  const favoriteProducts = mockProducts.filter((p) => favorites.includes(p.id));
-
-  const removeFavorite = (productId: string) => {
-    const nextFavorites = favorites.filter((id) => id !== productId);
-    setFavorites(nextFavorites);
-    localStorage.setItem('favorites', JSON.stringify(nextFavorites));
-    window.dispatchEvent(new Event('favorites-updated'));
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* <button
-          type="button"
-          onClick={() => router.push('/shop')}
-          className="mb-8 flex cursor-pointer items-center gap-2 font-semibold text-primary transition-colors hover:text-primary/80"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back to Shop
-        </button> */}
-
+  if (status !== 'authenticated') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-secondary/60 via-background to-primary/5 px-4 py-16">
         <PageHeader
           icon={Heart}
           eyebrow="Saved for you"
           titleBefore="My"
           titleGradient="Favorites"
+          description="Sign in to see brands you saved from product pages."
+          className="max-w-xl"
+          contentClassName="text-center w-full"
+        />
+        <button
+          type="button"
+          onClick={() => router.push('/login')}
+          className="rounded-xl bg-primary px-8 py-3 font-semibold text-white shadow-lg hover:bg-primary/90"
+        >
+          Sign in
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <SkeletonLoader />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-primary/5">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          icon={Heart}
+          eyebrow="Saved for you"
+          titleBefore="My"
+          titleGradient="Favorite brands"
           description={
-            favoriteProducts.length > 0 ? (
+            rows.length > 0 ? (
               <>
-                {favoriteProducts.length} item{favoriteProducts.length > 1 ? 's' : ''}{' '}
-                saved with{' '}
-                <span className="font-medium text-primary">Nature Leaf</span>
+                {rows.length} saved brand{rows.length !== 1 ? 's' : ''} from{' '}
+                <span className="font-medium text-primary">favorite-brands</span> API — products under these brands appear in Shop.
               </>
             ) : (
               <>
-                Save products you love — sign in and heart items across{' '}
-                <span className="font-medium text-primary">Nature Leaf</span>
+                Heart a brand from a product detail page — we use POST{' '}
+                <span className="font-medium text-primary">/api/v1/favorite-brands</span> with{' '}
+                <code className="rounded bg-secondary px-1">brandId</code>.
               </>
             )
           }
         />
 
-        {favoriteProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl">
-            <Heart className="w-16 h-16 text-gray-300 mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">No Favorites Yet</h2>
-            <p className="text-gray-600 mb-6 text-center">
-              Start adding products to your favorites to see them here
+        {errorMessage ? (
+          <div
+            className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            role="alert"
+          >
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {rows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 py-16">
+            <Heart className="mb-4 h-16 w-16 text-gray-300" />
+            <h2 className="mb-2 text-2xl font-bold text-gray-900">No favorite brands yet</h2>
+            <p className="mb-6 max-w-md text-center text-gray-600">
+              Open any product that includes a{' '}
+              <code className="rounded bg-white px-1">brandId</code> from your catalog and tap the heart — it saves the
+              brand, not the individual product SKU.
             </p>
             <button
               type="button"
               onClick={() => router.push('/shop')}
-              className="cursor-pointer rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-xl"
+              className="cursor-pointer rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl"
             >
-              Continue Shopping
+              Browse shop
             </button>
           </div>
         ) : (
           <div className="rounded-2xl border border-gray-200 bg-gray-50/40 p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {favoriteProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 hover:border-primary/30"
-              >
-                {/* Product Image Container */}
-                <div className="relative aspect-square bg-gradient-to-br from-gray-100 to-gray-50 overflow-hidden">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-
-                  {/* Badge */}
-                  {product.badge && (
-                    <div className="absolute top-4 left-4 bg-gradient-to-r from-primary to-primary/80 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
-                      {product.badge}
-                    </div>
-                  )}
-
-                  {/* Favorite Button */}
-                  <button
-                    type="button"
-                    aria-label="Remove from favorites"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFavorite(product.id);
-                    }}
-                    className="absolute right-4 top-4 cursor-pointer rounded-full bg-white p-2.5 shadow-lg transition-all hover:bg-red-100"
-                  >
-                    <Heart
-                      className="w-5 h-5 fill-red-500 text-red-500"
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {rows.map((row) => {
+                const displayImageSrc =
+                  (row.imageUrl && row.imageUrl.trim() !== '' ? row.imageUrl : '') ||
+                  (row.image && row.image.trim() !== '' ? row.image : '') ||
+                  '/placeholder.svg';
+                return (
+                <div
+                  key={row.favoriteBrandId}
+                  className="group cursor-default overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:border-primary/30 hover:shadow-xl"
+                >
+                  <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-50">
+                    <img
+                      src={displayImageSrc}
+                      alt={
+                        row.productName?.trim() || row.name?.trim()
+                          ? (row.productName ?? row.name ?? 'Favorite')
+                          : 'Favorite brand'
+                      }
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                  </button>
 
-                  {/* Quick View Overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
                     <button
                       type="button"
-                      onClick={() => router.push(`/shop/${product.id}`)}
-                      className="-translate-y-2 transform cursor-pointer rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-transform group-hover:translate-y-0 hover:bg-primary/90"
+                      aria-label="Remove from favorites"
+                      onClick={() => void removeFavorite(row)}
+                      className="absolute right-4 top-4 cursor-pointer rounded-full bg-white p-2.5 shadow-lg transition-all hover:bg-red-50"
                     >
-                      View Details
+                      <Heart className="h-5 w-5 fill-red-500 text-red-500" />
                     </button>
                   </div>
-                </div>
 
-                {/* Product Info */}
-                <div className="p-5">
-                  <p className="text-xs text-primary font-bold uppercase tracking-widest mb-2">
-                    {product.category}
-                  </p>
-                  <h3 className="font-bold text-gray-900 mb-3 text-base leading-snug line-clamp-2">
-                    {product.name}
-                  </h3>
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="flex gap-0.5">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className="w-3.5 h-3.5"
-                          fill={i < Math.floor(product.rating) ? '#f59e0b' : '#e5e7eb'}
-                          color={i < Math.floor(product.rating) ? '#f59e0b' : '#e5e7eb'}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-xs text-gray-600">
-                      ({product.reviews})
-                    </span>
-                  </div>
-
-                  {/* Price */}
-                  <div className="mb-4 flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-gray-900">
-                      ${product.price}
-                    </span>
-                    {product.originalPrice && (
-                      <span className="text-sm text-gray-500 line-through">
-                        ${product.originalPrice}
-                      </span>
+                  <div className="p-5">
+                    {row.productName?.trim() ? (
+                      <>
+                        <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                          Sample product
+                        </p>
+                        <h3 className="mb-1 line-clamp-2 text-lg font-bold text-gray-900">{row.productName}</h3>
+                        {typeof row.price === 'number' ? (
+                          <p className="mb-2 text-base font-semibold text-primary">${row.price.toFixed(2)}</p>
+                        ) : null}
+                        <p className="mb-1 text-xs text-muted-foreground">
+                          Brand{' '}
+                          <span className="font-semibold text-gray-800">
+                            {row.name?.trim() ? row.name : row.brandId.slice(0, 8)}
+                          </span>
+                          {row.country ? (
+                            <span className="text-muted-foreground"> · {row.country}</span>
+                          ) : null}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Brand</p>
+                        <h3 className="mb-2 line-clamp-2 text-lg font-bold text-gray-900">
+                          {row.name?.trim()
+                            ? row.name
+                            : `Brand ${row.brandId.slice(0, 8)}…`}
+                        </h3>
+                        {row.country ? (
+                          <p className="mb-2 text-xs text-muted-foreground">{row.country}</p>
+                        ) : null}
+                      </>
                     )}
-                  </div>
+                    {/* <p className="mb-3 font-mono text-xs text-muted-foreground break-all">brand id · {row.brandId}</p> */}
+                    {row.description ? (
+                      <p className="mb-4 line-clamp-3 text-sm text-gray-600">{row.description}</p>
+                    ) : null}
 
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        addToCart({
-                          productId: product.id,
-                          name: product.name,
-                          price: product.price,
-                          quantity: 1,
-                          image: product.image,
-                        });
-                        showToast({
-                          header: 'Added to cart',
-                          message: `${product.name} is in your basket.`,
-                          variant: 'success',
-                        });
-                      }}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 py-2.5 font-semibold text-white shadow-md transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-lg"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      ADD TO CART
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeFavorite(product.id)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-red-200 bg-white py-2.5 text-sm font-semibold text-red-600 shadow-sm transition-all hover:border-red-300 hover:bg-red-50"
-                    >
-                      <HeartOff className="h-4 w-4" aria-hidden />
-                      Unfavorite
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      {row.productId?.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const id = row.productId?.trim();
+                            if (id) router.push(`/shop/${encodeURIComponent(id)}`);
+                          }}
+                          className="w-full rounded-lg border border-primary/30 bg-primary/10 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
+                        >
+                          View product
+                        </button>
+                      ) : null}
+                        {/* <button
+                          type="button"
+                          onClick={() => router.push('/shop')}
+                          className="w-full rounded-lg border border-gray-200 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50"
+                        >
+                          Shop catalog
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            showToast({
+                              header: 'Find products',
+                              message: `Filter catalog by brand in Shop or choose items from ${row.name ?? 'this brand'} on product cards.`,
+                              variant: 'info',
+                            });
+                          }}
+                          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 py-2.5 text-sm font-semibold text-white shadow-md hover:opacity-95"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                          Shopping tip
+                        </button> */}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+                );
+              })}
             </div>
           </div>
         )}

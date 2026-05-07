@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAuth } from '@/lib/auth-context';
 import { listOrdersAction } from '@/actions/order-actions';
+import { listFavoriteBrandsAction } from '@/actions/favorite-brand-actions';
 import type { Order } from '@/types/order';
 import { Menu, X, LogOut, ShoppingCart, User, Heart } from 'lucide-react';
 import Link from 'next/link';
@@ -35,6 +36,7 @@ export function Navigation() {
   const router = useRouter();
   const pathname = usePathname();
   const [ordersListSyncTick, setOrdersListSyncTick] = useState(0);
+  const [favoriteBrandsSyncTick, setFavoriteBrandsSyncTick] = useState(0);
 
   /** Total pieces on latest server order only — not local `cart` (avoids stale/offline basket vs empty API). */
   const cartBadgeCount = serverOrderQtyTotal;
@@ -47,31 +49,29 @@ export function Navigation() {
   ];
 
   useEffect(() => {
-    const refreshFavoriteCount = () => {
-      const storedFavorites = localStorage.getItem('favorites');
-      if (!storedFavorites) {
-        setFavoriteCount(0);
+    if (!isAuthenticated || status !== 'authenticated') {
+      setFavoriteCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const result = await listFavoriteBrandsAction({ page: 0, size: 100 });
+      if (cancelled) {
         return;
       }
-      try {
-        const parsed = JSON.parse(storedFavorites);
-        setFavoriteCount(Array.isArray(parsed) ? parsed.length : 0);
-      } catch {
+      if (result.success && result.data) {
+        setFavoriteCount(result.data.length);
+      } else {
         setFavoriteCount(0);
       }
-    };
-
-    refreshFavoriteCount();
-    window.addEventListener('storage', refreshFavoriteCount);
-    window.addEventListener('focus', refreshFavoriteCount);
-    window.addEventListener('favorites-updated', refreshFavoriteCount);
+    })();
 
     return () => {
-      window.removeEventListener('storage', refreshFavoriteCount);
-      window.removeEventListener('focus', refreshFavoriteCount);
-      window.removeEventListener('favorites-updated', refreshFavoriteCount);
+      cancelled = true;
     };
-  }, [pathname]);
+  }, [isAuthenticated, status, pathname, favoriteBrandsSyncTick]);
 
   useEffect(() => {
     if (!isAuthenticated || status !== 'authenticated') {
@@ -99,9 +99,15 @@ export function Navigation() {
   }, [isAuthenticated, status, pathname, ordersListSyncTick]);
 
   useEffect(() => {
-    const bump = () => setOrdersListSyncTick((n) => n + 1);
-    window.addEventListener('cart-orders-synced', bump);
-    return () => window.removeEventListener('cart-orders-synced', bump);
+    const bumpOrders = () => setOrdersListSyncTick((n) => n + 1);
+    window.addEventListener('cart-orders-synced', bumpOrders);
+    return () => window.removeEventListener('cart-orders-synced', bumpOrders);
+  }, []);
+
+  useEffect(() => {
+    const bumpFav = () => setFavoriteBrandsSyncTick((n) => n + 1);
+    window.addEventListener('favorite-brands-updated', bumpFav);
+    return () => window.removeEventListener('favorite-brands-updated', bumpFav);
   }, []);
 
   if (!isAuthenticated) return null;
@@ -159,8 +165,8 @@ export function Navigation() {
                 className={`h-6 w-6 ${favoriteCount > 0 || pathname === '/favorites' ? 'fill-current' : ''}`}
               />
               {favoriteCount > 0 && (
-                <span className="absolute right-0 top-0 flex h-4 w-4 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border border-white">
-                  {favoriteCount}
+                <span className="absolute right-0 top-0 flex h-4 w-4 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-red-500 text-[10px] font-bold text-white">
+                  {favoriteCount > 99 ? '99+' : favoriteCount}
                 </span>
               )}
             </button>

@@ -19,6 +19,11 @@ export interface ApiProductItem {
   category: string;
   description: string;
   badge: string | null;
+  /** When present, used for POST /favorite-brands */
+  brandId?: string | null;
+  brandName?: string | null;
+  /** Some APIs nest brand instead of flattening `brandId` / `brandName` */
+  brand?: { id?: string | null; name?: string | null } | null;
 }
 
 export interface ProductPaginationResponse {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useCart } from '@/lib/cart-context';
@@ -22,6 +22,11 @@ import {
   updateReviewAction,
 } from '@/actions/review-actions';
 import { createOrderItemAction } from '@/actions/order-actions';
+import {
+  addFavoriteBrandAction,
+  deleteFavoriteBrandAction,
+  listFavoriteBrandsAction,
+} from '@/actions/favorite-brand-actions';
 import { useModernToast } from '@/components/modern-toast';
 import { Heart, Star, ShoppingCart, ArrowLeft, Send, ChevronDown, Package, X } from 'lucide-react';
 
@@ -44,7 +49,11 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  /** brandId → row from GET /favorite-brands */
+  const [favoriteBrandById, setFavoriteBrandById] = useState<Map<string, { favoriteBrandId: string; brandId: string }>>(
+    () => new Map()
+  );
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
@@ -60,6 +69,109 @@ export default function ProductDetailPage() {
 
   const sessionUserId = session?.user?.id ?? '';
 
+  const loadFavoriteBrands = useCallback(async () => {
+    if (sessionStatus !== 'authenticated') {
+      setFavoriteBrandById(new Map());
+      return;
+    }
+    const res = await listFavoriteBrandsAction({ page: 0, size: 100 });
+    if (!res.success || !res.data) {
+      return;
+    }
+    const next = new Map<string, { favoriteBrandId: string; brandId: string }>();
+    for (const row of res.data) {
+      next.set(row.brandId, {
+        favoriteBrandId: row.favoriteBrandId,
+        brandId: row.brandId,
+      });
+    }
+    setFavoriteBrandById(next);
+  }, [sessionStatus]);
+
+  useEffect(() => {
+    void loadFavoriteBrands();
+  }, [loadFavoriteBrands, productId]);
+
+  const isBrandFavorite = useCallback(
+    (brandId: string | undefined) => Boolean(brandId && favoriteBrandById.has(brandId)),
+    [favoriteBrandById],
+  );
+
+  const toggleFavoriteBrandForProduct = useCallback(
+    async (brandId: string | undefined) => {
+      if (!brandId) {
+        showToast({
+          header: 'Cannot save brand',
+          message: 'This product has no brand id from the catalog — favorites require a brand.',
+          variant: 'warning',
+        });
+        return;
+      }
+      if (sessionStatus === 'loading') {
+        return;
+      }
+      if (sessionStatus !== 'authenticated' || !session?.user) {
+        showToast({
+          header: 'Sign in required',
+          message: 'Sign in to save favorite brands.',
+          variant: 'warning',
+        });
+        router.push('/login');
+        return;
+      }
+
+      setFavoriteBusy(true);
+      try {
+        const existing = favoriteBrandById.get(brandId);
+        if (existing) {
+          const del = await deleteFavoriteBrandAction(existing.favoriteBrandId);
+          if (!del.success) {
+            showToast({
+              header: 'Could not remove',
+              message: del.error ?? 'Please try again.',
+              variant: 'error',
+            });
+            return;
+          }
+          showToast({
+            header: 'Removed',
+            message: 'Brand removed from favorites.',
+            variant: 'success',
+          });
+        } else {
+          const add = await addFavoriteBrandAction({ brandId });
+          if (!add.success) {
+            showToast({
+              header: 'Could not save',
+              message: add.error ?? 'Please try again.',
+              variant: 'error',
+            });
+            return;
+          }
+          showToast({
+            header: 'Saved',
+            message: 'Brand added to favorites.',
+            variant: 'success',
+          });
+        }
+        await loadFavoriteBrands();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('favorite-brands-updated'));
+        }
+      } finally {
+        setFavoriteBusy(false);
+      }
+    },
+    [
+      favoriteBrandById,
+      loadFavoriteBrands,
+      router,
+      session?.user,
+      sessionStatus,
+      showToast,
+    ],
+  );
+
   const ratingBuckets = useMemo(() => {
     const counts = [0, 0, 0, 0, 0];
     for (const r of reviews) {
@@ -69,13 +181,6 @@ export default function ProductDetailPage() {
     const total = counts.reduce((a, b) => a + b, 0);
     return { counts, total };
   }, [reviews]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('favorites');
-    if (stored) {
-      setFavorites(JSON.parse(stored));
-    }
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,15 +247,6 @@ export default function ProductDetailPage() {
       : product.rating;
 
   const reviewCountDisplayed = reviews.length > 0 ? reviews.length : product.reviews;
-
-  const toggleFavorite = (id: string) => {
-    const nextFavorites = favorites.includes(id)
-      ? favorites.filter((fav) => fav !== id)
-      : [...favorites, id];
-    setFavorites(nextFavorites);
-    localStorage.setItem('favorites', JSON.stringify(nextFavorites));
-    window.dispatchEvent(new Event('favorites-updated'));
-  };
 
   /** POST `/api/v1/order-items` (same shape as curl: `{ productId, quantity }`). */
   const handleAddToCartClick = async () => {
@@ -441,18 +537,27 @@ export default function ProductDetailPage() {
                   {addToCartSubmitting ? 'Adding…' : 'Add to cart'}
                 </button>
                 <button
-                  onClick={() => toggleFavorite(product.id)}
-                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 border ${
-                    favorites.includes(product.id)
+                  type="button"
+                  disabled={favoriteBusy || sessionStatus === 'loading'}
+                  title={
+                    product.brandId
+                      ? undefined
+                      : sessionStatus === 'authenticated'
+                        ? 'This product has no brand id — tap to see details.'
+                        : 'Sign in to save brands'
+                  }
+                  onClick={() => void toggleFavoriteBrandForProduct(product.brandId)}
+                  className={`relative z-10 px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 border ${
+                    isBrandFavorite(product.brandId)
                       ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
                       : 'border-gray-300 text-gray-600 hover:border-primary hover:bg-gray-50'
-                  } active:scale-95`}
+                  } active:scale-95 disabled:pointer-events-none disabled:opacity-50`}
                 >
                   <Heart
                     className={`w-5 h-5 ${
-                      favorites.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'
+                      isBrandFavorite(product.brandId) ? 'fill-red-500 text-red-500' : 'text-gray-600'
                     }`}
-                    fill={favorites.includes(product.id) ? 'currentColor' : 'none'}
+                    fill={isBrandFavorite(product.brandId) ? 'currentColor' : 'none'}
                   />
                 </button>
               </div>
@@ -528,7 +633,7 @@ export default function ProductDetailPage() {
               >
                 All Types
               </button>
-              {relatedTypeOptions.map((type) => (
+              {/* {relatedTypeOptions.map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -541,7 +646,7 @@ export default function ProductDetailPage() {
                 >
                   {toTypeLabel(type)}
                 </button>
-              ))}
+              ))} */}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredRelatedProducts.map((relatedProduct) => (
@@ -565,18 +670,35 @@ export default function ProductDetailPage() {
                     )}
 
                     <button
+                      type="button"
+                      disabled={
+                        favoriteBusy ||
+                        relatedProduct.brandId == null ||
+                        relatedProduct.brandId === ''
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFavorite(relatedProduct.id);
+                        void toggleFavoriteBrandForProduct(relatedProduct.brandId);
                       }}
-                      className="absolute top-3 right-3 bg-white rounded-full p-2 hover:bg-gray-100 transition-all active:scale-90"
+                      className="absolute top-3 right-3 z-10 bg-white rounded-full p-2 hover:bg-gray-100 transition-all active:scale-90 disabled:opacity-40"
+                      aria-label={
+                        relatedProduct.brandId
+                          ? isBrandFavorite(relatedProduct.brandId)
+                            ? 'Remove brand from favorites'
+                            : 'Add brand to favorites'
+                          : 'No brand on product'
+                      }
                     >
-                      <Heart
+                      {/* <Heart
                         className={`w-5 h-5 ${
-                          favorites.includes(relatedProduct.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'
+                          isBrandFavorite(relatedProduct.brandId)
+                            ? 'fill-red-500 text-red-500'
+                            : 'text-gray-600'
                         }`}
-                        fill={favorites.includes(relatedProduct.id) ? 'currentColor' : 'none'}
-                      />
+                        fill={
+                          isBrandFavorite(relatedProduct.brandId) ? 'currentColor' : 'none'
+                        }
+                      /> */}
                     </button>
                   </div>
 

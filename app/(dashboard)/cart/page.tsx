@@ -10,6 +10,16 @@ import {
   listOrdersAction,
   updateOrderItemAction,
 } from '@/actions/order-actions';
+import {
+  createPaymentProfileAction,
+  updatePaymentProfileAction,
+} from '@/actions/payment-profile-actions';
+import {
+  bakongGenerateQrAction,
+  bakongGetQrImageAction,
+  bakongCheckTransactionAction,
+} from '@/actions/bakong-actions';
+import { BAKONG_MERCHANT_DISPLAY_NAME, KHQR_ASSETS } from '@/lib/khqr-assets';
 import { useModernToast } from '@/components/modern-toast';
 import { apiBaseUrl } from '@/constant/baseurl';
 import { Button } from '@/components/ui/button';
@@ -25,7 +35,7 @@ import {
 import type { Order, OrderItem } from '@/types/order';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { PageHeader } from '@/components/page-header';
-import { Trash2, Plus, Minus, ShoppingBag, X, Package } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, X, Package, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -34,8 +44,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+const paymentProfileStorageKey = (userId: string) =>
+  `norton:paymentProfileId:${userId}`;
+
 export default function CartPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const { showToast } = useModernToast();
   const { cartItems, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart();
   const router = useRouter();
@@ -52,12 +65,20 @@ export default function CartPage() {
     deliveryAddress: '',
   });
   const [formError, setFormError] = useState('');
+  /** Cached server id — PUT on later confirms when still same browser/session. */
+  const [storedPaymentProfileId, setStoredPaymentProfileId] = useState<string | null>(null);
+  const [paymentProfileBusy, setPaymentProfileBusy] = useState(false);
   const [syncingLineId, setSyncingLineId] = useState<string | null>(null);
   const [pendingAccountLineDelete, setPendingAccountLineDelete] = useState<{
     id: string;
     productName: string;
   } | null>(null);
   const [confirmAccountDeleteBusy, setConfirmAccountDeleteBusy] = useState(false);
+  const [bakongMd5, setBakongMd5] = useState<string | null>(null);
+  const [bakongQrImageDataUrl, setBakongQrImageDataUrl] = useState<string | null>(null);
+  const [bakongQrError, setBakongQrError] = useState<string | null>(null);
+  const [bakongQrLoading, setBakongQrLoading] = useState(false);
+  const [bakongCheckBusy, setBakongCheckBusy] = useState(false);
 
   const reloadServerOrders = useCallback(async () => {
     const result = await listOrdersAction({ page: 0, size: 50 });
@@ -77,6 +98,25 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
+    const userId = session?.user?.id;
+    if (typeof window === 'undefined' || !userId) {
+      return;
+    }
+    try {
+      const existing = sessionStorage.getItem(paymentProfileStorageKey(userId));
+      setStoredPaymentProfileId(existing && existing.trim() !== '' ? existing.trim() : null);
+    } catch {
+      setStoredPaymentProfileId(null);
+    }
+  }, [session?.user?.id, status]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      setStoredPaymentProfileId(null);
+    }
+  }, [status]);
+
+  useEffect(() => {
     if (!isClient || status === 'loading') {
       return;
     }
@@ -93,8 +133,7 @@ export default function CartPage() {
         return;
       }
 
-      const result = await listOrdersAction({ page: 0, size: 50 }); 
-      console.log('result', result);
+      const result = await listOrdersAction({ page: 0, size: 50 });
       if (cancelled) {
         return;
       }
@@ -251,6 +290,70 @@ export default function CartPage() {
     [status, showToast, reloadServerOrders],
   );
 
+  useEffect(() => {
+    if (!isCheckoutOpen || checkoutStep !== 'payment') {
+      return;
+    }
+
+    const amountUsdRaw = summaryGrandTotal;
+    const safeAmount = Number(Number.isFinite(amountUsdRaw) ? Math.max(amountUsdRaw, 0.01) : 0.01).toFixed(2);
+    const amountUsdNumber = Number(safeAmount);
+
+    if (!isClient || status !== 'authenticated') {
+      setBakongQrError('Sign in to generate a KHQR code.');
+      return;
+    }
+
+    let cancelled = false;
+
+    async function setupKhqr(): Promise<void> {
+      setBakongQrError(null);
+      setBakongQrImageDataUrl(null);
+      setBakongMd5(null);
+      setBakongQrLoading(true);
+      try {
+        const gen = await bakongGenerateQrAction({
+          currency: 'USD',
+          amount: amountUsdNumber,
+          merchantName: BAKONG_MERCHANT_DISPLAY_NAME,
+        });
+        if (cancelled) {
+          return;
+        }
+        if (!gen.success || !gen.data?.qr) {
+          setBakongQrError(gen.error ?? 'Could not generate KHQR.');
+          return;
+        }
+        setBakongMd5(gen.data.md5);
+
+        const qrImg = await bakongGetQrImageAction({ qr: gen.data.qr });
+        if (cancelled) {
+          return;
+        }
+        if (!qrImg.success || !qrImg.data?.imageDataUrl) {
+          setBakongQrError(qrImg.error ?? 'Could not render QR image.');
+          return;
+        }
+        setBakongQrImageDataUrl(qrImg.data.imageDataUrl);
+      } finally {
+        if (!cancelled) {
+          setBakongQrLoading(false);
+        }
+      }
+    }
+
+    void setupKhqr().catch(() => {
+      if (!cancelled) {
+        setBakongQrError('KHQR initialization failed unexpectedly.');
+      }
+      setBakongQrLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCheckoutOpen, checkoutStep, status, summaryGrandTotal, isClient]);
+
   if (!isClient || isPageLoading) {
     return <SkeletonLoader />;
   }
@@ -259,6 +362,11 @@ export default function CartPage() {
     setIsCheckoutOpen(false);
     setCheckoutStep('details');
     setFormError('');
+    setBakongMd5(null);
+    setBakongQrImageDataUrl(null);
+    setBakongQrError(null);
+    setBakongQrLoading(false);
+    setBakongCheckBusy(false);
   };
 
   const validateCheckoutForm = () => {
@@ -293,23 +401,133 @@ export default function CartPage() {
     router.push('/history');
   };
 
-  const handleCheckoutSubmit = () => {
+  const handleCheckoutSubmit = async () => {
     setFormError('');
 
     if (!validateCheckoutForm()) {
       return;
     }
 
-    if (checkoutForm.fulfillmentMethod === 'pickup') {
-      setCheckoutStep('payment');
+    if (status !== 'authenticated') {
+      setFormError('Sign in to confirm checkout details and save your payment profile.');
       return;
     }
 
-    placeOrder(false);
+    const deliveryOption =
+      checkoutForm.fulfillmentMethod === 'pickup' ? ('PICKUP' as const) : ('DELIVERY' as const);
+    const body = {
+      deliveryOption,
+      fullName: checkoutForm.fullName.trim(),
+      contactNumber: checkoutForm.contactNumber.trim(),
+      deliveryAddress:
+        checkoutForm.fulfillmentMethod === 'pickup' ? null : checkoutForm.deliveryAddress.trim(),
+    };
+
+    setPaymentProfileBusy(true);
+    try {
+      let res =
+        storedPaymentProfileId !== null && storedPaymentProfileId !== ''
+          ? await updatePaymentProfileAction(storedPaymentProfileId, body)
+          : await createPaymentProfileAction(body);
+
+      if (
+        !res.success &&
+        storedPaymentProfileId &&
+        typeof res.error === 'string' &&
+        /404|not found/i.test(res.error)
+      ) {
+        setStoredPaymentProfileId(null);
+        const uid = session?.user?.id;
+        if (typeof window !== 'undefined' && uid) {
+          try {
+            sessionStorage.removeItem(paymentProfileStorageKey(uid));
+          } catch {
+            /* ignore */
+          }
+        }
+        res = await createPaymentProfileAction(body);
+      }
+
+      if (!res.success) {
+        setFormError(res.error ?? 'Could not save payment profile.');
+        showToast({
+          header: 'Could not save details',
+          message: res.error ?? 'Please try again.',
+          variant: 'error',
+        });
+        return;
+      }
+
+      const returnedId =
+        typeof res.paymentProfileId === 'string' && res.paymentProfileId.trim() !== ''
+          ? res.paymentProfileId.trim()
+          : null;
+      if (returnedId) {
+        setStoredPaymentProfileId(returnedId);
+        const uid = session?.user?.id;
+        if (typeof window !== 'undefined' && uid) {
+          try {
+            sessionStorage.setItem(paymentProfileStorageKey(uid), returnedId);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      showToast({
+        header: 'Details saved',
+        message:
+          checkoutForm.fulfillmentMethod === 'pickup'
+            ? 'Payment profile saved. Continue to QR payment.'
+            : 'Payment profile saved. Completing your order.',
+        variant: 'success',
+      });
+
+      if (checkoutForm.fulfillmentMethod === 'pickup') {
+        setCheckoutStep('payment');
+        return;
+      }
+
+      placeOrder(false);
+    } finally {
+      setPaymentProfileBusy(false);
+    }
   };
 
   const handleAlreadyPaid = () => {
     placeOrder(true);
+  };
+
+  const handleCheckBakongPayment = async () => {
+    if (!bakongMd5) {
+      showToast({
+        header: 'Not ready yet',
+        message: 'KHQR fingerprint (md5) was not returned from generate-qr.',
+        variant: 'warning',
+      });
+      return;
+    }
+    setBakongCheckBusy(true);
+    try {
+      const res = await bakongCheckTransactionAction({ md5: bakongMd5 });
+      if (!res.success) {
+        showToast({
+          header: 'Check failed',
+          message: res.error ?? 'Verify payment with your bank.',
+          variant: 'error',
+        });
+        return;
+      }
+      const snippet =
+        res.data !== undefined ? JSON.stringify(res.data).slice(0, 400) : 'OK';
+      showToast({
+        header: 'Bakong check',
+        message: snippet,
+        variant: 'success',
+      });
+    } finally {
+      setBakongCheckBusy(false);
+    }
   };
 
   return (
@@ -338,7 +556,7 @@ export default function CartPage() {
         {showCheckoutGrid ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-10">
-              {hasAccountOrderLines && latestAccountOrder ? (
+              {/* {hasAccountOrderLines && latestAccountOrder ? (
                 <section aria-labelledby="account-order-heading">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <h2 id="account-order-heading" className="flex items-center gap-2 text-lg font-bold text-gray-900">
@@ -430,9 +648,9 @@ export default function CartPage() {
                     })}
                   </div>
                 </section>
-              ) : null}
+              ) : null} */}
 
-              {/* {hasBasket ? (
+              {hasBasket ? (
                 <section aria-labelledby="basket-heading">
                   <h2 id="basket-heading" className="mb-4 text-lg font-bold text-gray-900">
                     In your basket
@@ -485,7 +703,7 @@ export default function CartPage() {
                     ))}
                   </div>
                 </section>
-              ) : null} */}
+              ) : null}
             </div>
 
             <div className="lg:col-span-1">
@@ -631,7 +849,7 @@ export default function CartPage() {
       </AlertDialog>
 
       <Dialog open={isCheckoutOpen} onOpenChange={closeCheckoutDialog}>
-        <DialogContent showCloseButton={false} className="sm:max-w-md">
+        <DialogContent showCloseButton={false} className="sm:max-w-lg">
           <button
             onClick={closeCheckoutDialog}
             className="absolute top-4 right-4 rounded-md p-1.5 text-red-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:text-red-500 hover:shadow-md"
@@ -645,11 +863,12 @@ export default function CartPage() {
             </DialogTitle>
             {checkoutStep === 'details' ? (
               <DialogDescription className="text-center">
-                Choose pickup or delivery and confirm your information before checkout.
+                Choose pickup or delivery. We POST or PUT{' '}
+                <span className="font-medium text-foreground">/api/v1/payment-profiles</span> before you continue.
               </DialogDescription>
             ) : (
-              <DialogDescription className="text-center">
-                Scan the KHQR code with your banking app to complete pickup checkout.
+              <DialogDescription className="text-center text-sm text-muted-foreground">
+                Scan with any Cambodian bank app that supports Bakong KHQR (NBC).
               </DialogDescription>
             )}
           </DialogHeader>
@@ -751,42 +970,123 @@ export default function CartPage() {
               )}
 
               <button
-                onClick={handleCheckoutSubmit}
-                className="w-full rounded-xl bg-primary py-2.5 font-semibold text-white transition-all hover:bg-primary/90"
+                type="button"
+                disabled={paymentProfileBusy}
+                onClick={() => void handleCheckoutSubmit()}
+                className="w-full rounded-xl bg-primary py-2.5 font-semibold text-white transition-all hover:bg-primary/90 disabled:opacity-60"
               >
-                {checkoutForm.fulfillmentMethod === 'pickup'
-                  ? 'Continue to QR Payment'
-                  : 'Place Delivery Order'}
+                {paymentProfileBusy
+                  ? 'Saving profile…'
+                  : checkoutForm.fulfillmentMethod === 'pickup'
+                    ? 'Continue to QR Payment'
+                    : 'Place Delivery Order'}
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-xl border-4 border-gray-900 bg-white p-4 shadow-sm">
-                <div className="relative h-full w-full overflow-hidden rounded-md border border-gray-300 bg-white">
-                  <div className="absolute inset-0 bg-[radial-gradient(#111_1.5px,transparent_1.5px)] bg-[size:10px_10px] opacity-25" />
-                  <div className="absolute left-3 top-3 h-10 w-10 rounded-sm border-4 border-black bg-white" />
-                  <div className="absolute right-3 top-3 h-10 w-10 rounded-sm border-4 border-black bg-white" />
-                  <div className="absolute bottom-3 left-3 h-10 w-10 rounded-sm border-4 border-black bg-white" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="rounded bg-black px-2 py-1 text-xs font-bold text-white tracking-wider">
-                      KHQR
-                    </span>
-                  </div>
-                </div>
-              </div>
+            <div className="space-y-5">
+              {/*
+                Single “receipt card” layout aligned with NBC KHQR presentment (reference):
+                red header + white body, payer, amount, dashed rule, centred QR with national mark.
+              */}
+              {(() => {
+                const payNum = Number.isFinite(summaryGrandTotal) ? Math.max(summaryGrandTotal, 0) : 0;
+                const amountMain = new Intl.NumberFormat('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(payNum);
+                const payerLabel = checkoutForm.fullName.trim() || 'Customer';
+                return (
+                  <div className="mx-auto w-full max-w-[300px] overflow-hidden rounded-2xl bg-white shadow-[0_10px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06]">
+                    <div className="relative bg-[#E11D2E] px-5 pb-12 pt-6">
+                      <div className="flex justify-center">
+                        <img
+                          src={KHQR_ASSETS.logoSvg}
+                          alt="KHQR"
+                          className="h-9 w-auto object-contain brightness-0 invert"
+                        />
+                      </div>
+                      <div
+                        className="absolute bottom-0 right-0 border-b-[42px] border-l-[42px] border-b-white border-l-transparent"
+                        aria-hidden
+                      />
+                    </div>
 
-              <div className="space-y-2">
+                    <div className="relative -mt-px bg-white px-5 pb-6 pt-6 text-black">
+                      <p className="text-center font-medium leading-tight tracking-tight text-gray-900">
+                        {payerLabel}
+                      </p>
+                      <p className="mt-5 flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+                        <span className="text-[1.85rem] font-bold leading-none tabular-nums tracking-tight">
+                          {amountMain}
+                        </span>
+                        <span className="text-sm font-semibold uppercase text-gray-800">USD</span>
+                      </p>
+                      <p className="mt-3 text-center text-[10px] text-gray-400">
+                        {BAKONG_MERCHANT_DISPLAY_NAME}
+                      </p>
+
+                      <div
+                        className="my-5 border-t border-dashed border-gray-300"
+                        aria-hidden
+                      />
+
+                      <div className="relative mx-auto flex w-full max-w-[240px] justify-center pb-2">
+                        <div className="relative rounded-lg bg-white p-2">
+                          {bakongQrLoading ? (
+                            <div className="flex h-[220px] w-[220px] flex-col items-center justify-center gap-2 rounded-md bg-gray-50 text-xs text-muted-foreground">
+                              <Loader2 className="h-8 w-8 animate-spin text-[#E11D2E]" aria-hidden />
+                              Generating KHQR…
+                            </div>
+                          ) : bakongQrImageDataUrl ? (
+                            <img
+                              src={bakongQrImageDataUrl}
+                              alt="KHQR payment code"
+                              width={220}
+                              height={220}
+                              className="h-[220px] w-[220px] rounded-md object-contain"
+                            />
+                          ) : (
+                            <div className="flex h-[220px] w-[220px] items-center justify-center rounded-md bg-gray-50 px-3 text-center text-[11px] text-muted-foreground">
+                              {bakongQrError ?? 'QR unavailable'}
+                            </div>
+                          )}
+                          {bakongQrImageDataUrl && !bakongQrLoading ? (
+                            <div
+                              className="pointer-events-none absolute left-1/2 top-1/2 flex h-[52px] w-[52px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black text-[1.65rem] text-white shadow-sm ring-[3px] ring-white"
+                              aria-hidden
+                            >
+                              ៛
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex flex-col gap-2 pt-1">
                 <button
-                  onClick={handleAlreadyPaid}
-                  className="w-full rounded-xl bg-primary py-2.5 font-semibold text-white transition-all hover:bg-primary/90"
+                  type="button"
+                  disabled={bakongCheckBusy || !bakongMd5}
+                  onClick={() => void handleCheckBakongPayment()}
+                  className="w-full rounded-xl border-2 border-primary py-2.5 font-semibold text-primary transition-all hover:bg-primary/5 disabled:opacity-50"
                 >
-                  I Have Paid
+                  {bakongCheckBusy ? 'Checking Bakong…' : 'Check payment (HTTP)'}
                 </button>
                 <button
+                  type="button"
+                  onClick={() => handleAlreadyPaid()}
+                  className="w-full rounded-xl bg-[#E11D2E] py-2.5 font-semibold text-white transition-all hover:bg-[#c91928]"
+                >
+                  I have paid · complete order
+                </button>
+                <button
+                  type="button"
                   onClick={() => setCheckoutStep('details')}
                   className="w-full rounded-xl border border-gray-300 py-2.5 font-semibold text-gray-700 transition-all hover:bg-gray-50"
                 >
-                  Back to Details
+                  Back to details
                 </button>
               </div>
             </div>

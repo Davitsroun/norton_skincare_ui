@@ -323,7 +323,7 @@ export default function ShopPage() {
                     )}
 
                     {/* Favorite Button */}
-                    <button
+                    {/* <button
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleFavorite(product.id);
@@ -336,7 +336,7 @@ export default function ShopPage() {
                         }`}
                         fill={favorites.includes(product.id) ? 'currentColor' : 'none'}
                       />
-                    </button>
+                    </button> */}
 
                   </div>
 

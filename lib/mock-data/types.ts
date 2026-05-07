@@ -11,6 +11,9 @@ export interface Product {
   category: string;
   description: string;
   badge?: string;
+  /** Brand UUID from catalog — required for favorite-brands API */
+  brandId?: string;
+  brandName?: string;
 }
 
 export interface ProductReview {

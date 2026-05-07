@@ -13,8 +13,41 @@ export type ProductReviewDisplay = {
   text: string;
 };
 
+function trimStr(v: unknown): string | undefined {
+  if (typeof v !== 'string') {
+    return undefined;
+  }
+  const t = v.trim();
+  return t !== '' ? t : undefined;
+}
+
+/** Resolve brand id/name from flat fields, nested `brand`, or snake_case keys. */
+export function resolveBrandFromApiItem(item: ApiProductItem): {
+  brandId?: string;
+  brandName?: string;
+} {
+  const rec = item as ApiProductItem & Record<string, unknown>;
+  const nested = item.brand;
+  const flatId = trimStr(item.brandId) ?? trimStr(rec.brand_id);
+  const nestedId =
+    nested && typeof nested === 'object' && nested !== null
+      ? trimStr((nested as { id?: unknown }).id)
+      : undefined;
+  const brandId = flatId ?? nestedId;
+
+  const flatName = trimStr(item.brandName) ?? trimStr(rec.brand_name);
+  const nestedName =
+    nested && typeof nested === 'object' && nested !== null
+      ? trimStr((nested as { name?: unknown }).name)
+      : undefined;
+  const brandName = flatName ?? nestedName;
+
+  return { brandId, brandName };
+}
+
 /** API catalog row → shop UI shape */
 export function apiItemToProduct(item: ApiProductItem): Product {
+  const { brandId, brandName } = resolveBrandFromApiItem(item);
   return {
     id: item.id,
     name: item.name,
@@ -26,6 +59,8 @@ export function apiItemToProduct(item: ApiProductItem): Product {
     category: normalizeProductCategoryKey(item.category),
     description: item.description,
     badge: item.badge ?? undefined,
+    brandId,
+    brandName,
   };
 }
 
