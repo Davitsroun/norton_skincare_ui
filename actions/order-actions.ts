@@ -5,6 +5,7 @@ import {
   createOrderItemService,
   deleteOrderItemService,
   getOrderItemByIdService,
+  listOrderHistoryService,
   listOrderItemsService,
   listOrdersService,
   updateOrderItemService,
@@ -41,12 +42,24 @@ export async function createOrderAction(
   }
 }
 
+/** Active open carts — `GET /api/v1/orders` (`pending` / `processing`). */
 export async function listOrdersAction(params?: OrderListParams): Promise<OrderActionResult<Order[]>> {
   try {
     const data = await listOrdersService(params);
     return { success: true, data };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load orders.';
+    return { success: false, error: message };
+  }
+}
+
+/** Paid / completed — `GET /api/v1/orders/history`. */
+export async function listOrderHistoryAction(params?: OrderListParams): Promise<OrderActionResult<Order[]>> {
+  try {
+    const data = await listOrderHistoryService(params);
+    return { success: true, data };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to load order history.';
     return { success: false, error: message };
   }
 }

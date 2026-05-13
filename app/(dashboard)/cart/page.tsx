@@ -1,27 +1,22 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useCart } from '@/lib/cart-context';
-import { createOrderFromCart, saveOrderToHistory } from '@/lib/order-storage';
 import {
-  deleteOrderItemAction,
-  listOrdersAction,
-  updateOrderItemAction,
-} from '@/actions/order-actions';
+  createOrderFromCart,
+  saveOrderToHistory,
+  snapshotApiOrderAfterCheckout,
+} from '@/lib/order-storage';
+import { deleteOrderItemAction, updateOrderItemAction } from '@/actions/order-actions';
 import {
   createPaymentProfileAction,
   updatePaymentProfileAction,
 } from '@/actions/payment-profile-actions';
-import {
-  bakongGenerateQrAction,
-  bakongGetQrImageAction,
-  bakongCheckTransactionAction,
-} from '@/actions/bakong-actions';
+import { createPaymentAction } from '@/actions/payments-actions';
 import { BAKONG_MERCHANT_DISPLAY_NAME, KHQR_ASSETS } from '@/lib/khqr-assets';
 import { useModernToast } from '@/components/modern-toast';
-import { apiBaseUrl } from '@/constant/baseurl';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -32,10 +27,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Order, OrderItem } from '@/types/order';
+import type { OrderItem } from '@/types/order';
 import { SkeletonLoader } from '@/components/skeleton-loader';
 import { PageHeader } from '@/components/page-header';
-import { Trash2, Plus, Minus, ShoppingBag, X, Package, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, X, Loader2, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -43,9 +38,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-const paymentProfileStorageKey = (userId: string) =>
-  `norton:paymentProfileId:${userId}`;
+import { useOrdersForCart } from '@/hooks/use-orders-for-cart';
+import { usePaymentProfileId } from '@/hooks/use-payment-profile-id';
+import { useBakongKhqr } from '@/hooks/use-bakong-khqr';
+import { cn } from '@/lib/utils';
 
 export default function CartPage() {
   const { data: session, status } = useSession();
@@ -53,9 +49,31 @@ export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, clearCart, cartTotal } = useCart();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(true);
-  const [serverOrders, setServerOrders] = useState<Order[]>([]);
-  const [ordersError, setOrdersError] = useState<string | null>(null);
+  /** POST /payments when confirming Bakong pickup — must live with top-level hooks (before any conditional return). */
+  const [isPickupPaidSubmitting, setPickupPaidSubmitting] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const {
+    latestOrder: latestAccountOrder,
+    reload: reloadServerOrders,
+    error: ordersError,
+    loading: ordersLoading,
+    linesSubtotal: accountLinesSubtotal,
+    feesVersusLines: summaryFeesFromApi,
+  } = useOrdersForCart({
+    isClient,
+    sessionStatus: status,
+    session,
+  });
+
+  const {
+    storedId: storedPaymentProfileId,
+    setStoredId: setStoredPaymentProfileId,
+  } = usePaymentProfileId({ userId: session?.user?.id, authStatus: status });
+
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'details' | 'payment'>('details');
   const [checkoutForm, setCheckoutForm] = useState({
@@ -65,8 +83,6 @@ export default function CartPage() {
     deliveryAddress: '',
   });
   const [formError, setFormError] = useState('');
-  /** Cached server id — PUT on later confirms when still same browser/session. */
-  const [storedPaymentProfileId, setStoredPaymentProfileId] = useState<string | null>(null);
   const [paymentProfileBusy, setPaymentProfileBusy] = useState(false);
   const [syncingLineId, setSyncingLineId] = useState<string | null>(null);
   const [pendingAccountLineDelete, setPendingAccountLineDelete] = useState<{
@@ -74,131 +90,48 @@ export default function CartPage() {
     productName: string;
   } | null>(null);
   const [confirmAccountDeleteBusy, setConfirmAccountDeleteBusy] = useState(false);
-  const [bakongMd5, setBakongMd5] = useState<string | null>(null);
-  const [bakongQrImageDataUrl, setBakongQrImageDataUrl] = useState<string | null>(null);
-  const [bakongQrError, setBakongQrError] = useState<string | null>(null);
-  const [bakongQrLoading, setBakongQrLoading] = useState(false);
-  const [bakongCheckBusy, setBakongCheckBusy] = useState(false);
 
-  const reloadServerOrders = useCallback(async () => {
-    const result = await listOrdersAction({ page: 0, size: 50 });
-    if (result.success && result.data) {
-      setServerOrders(result.data);
-      setOrdersError(null);
-    } else {
-      setOrdersError(result.error ?? 'Could not load orders.');
-    }
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('cart-orders-synced'));
-    }
-  }, []);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    const userId = session?.user?.id;
-    if (typeof window === 'undefined' || !userId) {
-      return;
-    }
-    try {
-      const existing = sessionStorage.getItem(paymentProfileStorageKey(userId));
-      setStoredPaymentProfileId(existing && existing.trim() !== '' ? existing.trim() : null);
-    } catch {
-      setStoredPaymentProfileId(null);
-    }
-  }, [session?.user?.id, status]);
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      setStoredPaymentProfileId(null);
-    }
-  }, [status]);
-
-  useEffect(() => {
-    if (!isClient || status === 'loading') {
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      if (status !== 'authenticated') {
-        setServerOrders([]);
-        setOrdersError(null);
-        if (!cancelled) {
-          setIsPageLoading(false);
-        }
-        return;
-      }
-
-      const result = await listOrdersAction({ page: 0, size: 50 });
-      if (cancelled) {
-        return;
-      }
-      if (result.success && result.data) {
-        setServerOrders(result.data);
-        setOrdersError(null);
-      } else {
-        setServerOrders([]);
-        setOrdersError(result.error ?? 'Could not load orders.');
-      }
-      setIsPageLoading(false);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('cart-orders-synced'));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isClient, status]);
-
-  const latestAccountOrder = useMemo(() => {
-    if (serverOrders.length === 0) {
-      return null;
-    }
-    const sorted = [...serverOrders].sort((a, b) => {
-      const db = Date.parse(`${b.date}T12:00:00`);
-      const da = Date.parse(`${a.date}T12:00:00`);
-      const safeB = Number.isNaN(db) ? 0 : db;
-      const safeA = Number.isNaN(da) ? 0 : da;
-      return safeB - safeA;
-    });
-    return sorted[0] ?? null;
-  }, [serverOrders]);
-
-  const accountLinesSubtotal = useMemo(() => {
-    if (!latestAccountOrder?.items.length) {
-      return 0;
-    }
-    return latestAccountOrder.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  }, [latestAccountOrder]);
-
-  const hasBasket = cartItems.length > 0;
-  const hasAccountOrderLines = Boolean(latestAccountOrder?.items?.length);
-
-  const showCheckoutGrid = hasBasket || hasAccountOrderLines;
-
-  const summaryUsesAccountTotal = hasAccountOrderLines && !hasBasket;
+  const isGuest = status !== 'authenticated';
+  const hasApiLines =
+    status === 'authenticated' && Boolean(latestAccountOrder?.items?.length);
+  const hasLocalBasket = cartItems.length > 0;
+  const showCheckoutGrid = hasApiLines || (isGuest && hasLocalBasket);
+  const summaryUsesApiTotals = hasApiLines;
 
   const accountItemCount =
     latestAccountOrder?.items.reduce((s, x) => s + x.quantity, 0) ?? 0;
 
-  const headerCount = hasBasket
-    ? `${cartItems.length} item${cartItems.length !== 1 ? 's' : ''} in your cart`
-    : hasAccountOrderLines
-      ? `${accountItemCount} item${accountItemCount !== 1 ? 's' : ''} on your latest order`
+  const headerCount = summaryUsesApiTotals
+    ? `${accountItemCount} item${accountItemCount !== 1 ? 's' : ''} in your basket`
+    : hasLocalBasket
+      ? `${cartItems.length} item${cartItems.length !== 1 ? 's' : ''} in your cart`
       : '0 items in your cart';
 
-  const summarySubtotal = summaryUsesAccountTotal ? accountLinesSubtotal : cartTotal;
-  /** Order total returned by GET /orders (includes tax/discount versus line sum only when syncing from API). */
-  const grossFromApi = summaryUsesAccountTotal ? (latestAccountOrder?.total ?? 0) : 0;
-  const summaryFeesFromApi = summaryUsesAccountTotal
-    ? Math.max(0, Math.round((grossFromApi - accountLinesSubtotal) * 100) / 100)
-    : 0;
-  const summaryGrandTotal = summaryUsesAccountTotal ? grossFromApi : summarySubtotal;
+  const summarySubtotal = summaryUsesApiTotals ? accountLinesSubtotal : cartTotal;
+  const grossFromApi = summaryUsesApiTotals ? (latestAccountOrder?.total ?? 0) : 0;
+  const summaryGrandTotal = summaryUsesApiTotals
+    ? grossFromApi > 0
+      ? grossFromApi
+      : accountLinesSubtotal
+    : summarySubtotal;
+
+  const {
+    md5: bakongMd5,
+    imageDataUrl: bakongQrImageDataUrl,
+    error: bakongQrError,
+    loading: bakongQrLoading,
+    reset: resetBakong,
+    secondsRemaining: khqrSecondsRemaining,
+    isQrExpired: khqrExpired,
+  } = useBakongKhqr({
+    active: isCheckoutOpen && checkoutStep === 'payment',
+    amountUsd: summaryGrandTotal,
+    isAuthenticated: status === 'authenticated',
+    isClient,
+  });
+
+  const isPageLoading =
+    !isClient || status === 'loading' || (status === 'authenticated' && ordersLoading);
 
   const removeAccountOrderLine = useCallback(
     async (orderItemId: string): Promise<boolean> => {
@@ -290,70 +223,6 @@ export default function CartPage() {
     [status, showToast, reloadServerOrders],
   );
 
-  useEffect(() => {
-    if (!isCheckoutOpen || checkoutStep !== 'payment') {
-      return;
-    }
-
-    const amountUsdRaw = summaryGrandTotal;
-    const safeAmount = Number(Number.isFinite(amountUsdRaw) ? Math.max(amountUsdRaw, 0.01) : 0.01).toFixed(2);
-    const amountUsdNumber = Number(safeAmount);
-
-    if (!isClient || status !== 'authenticated') {
-      setBakongQrError('Sign in to generate a KHQR code.');
-      return;
-    }
-
-    let cancelled = false;
-
-    async function setupKhqr(): Promise<void> {
-      setBakongQrError(null);
-      setBakongQrImageDataUrl(null);
-      setBakongMd5(null);
-      setBakongQrLoading(true);
-      try {
-        const gen = await bakongGenerateQrAction({
-          currency: 'USD',
-          amount: amountUsdNumber,
-          merchantName: BAKONG_MERCHANT_DISPLAY_NAME,
-        });
-        if (cancelled) {
-          return;
-        }
-        if (!gen.success || !gen.data?.qr) {
-          setBakongQrError(gen.error ?? 'Could not generate KHQR.');
-          return;
-        }
-        setBakongMd5(gen.data.md5);
-
-        const qrImg = await bakongGetQrImageAction({ qr: gen.data.qr });
-        if (cancelled) {
-          return;
-        }
-        if (!qrImg.success || !qrImg.data?.imageDataUrl) {
-          setBakongQrError(qrImg.error ?? 'Could not render QR image.');
-          return;
-        }
-        setBakongQrImageDataUrl(qrImg.data.imageDataUrl);
-      } finally {
-        if (!cancelled) {
-          setBakongQrLoading(false);
-        }
-      }
-    }
-
-    void setupKhqr().catch(() => {
-      if (!cancelled) {
-        setBakongQrError('KHQR initialization failed unexpectedly.');
-      }
-      setBakongQrLoading(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isCheckoutOpen, checkoutStep, status, summaryGrandTotal, isClient]);
-
   if (!isClient || isPageLoading) {
     return <SkeletonLoader />;
   }
@@ -362,11 +231,7 @@ export default function CartPage() {
     setIsCheckoutOpen(false);
     setCheckoutStep('details');
     setFormError('');
-    setBakongMd5(null);
-    setBakongQrImageDataUrl(null);
-    setBakongQrError(null);
-    setBakongQrLoading(false);
-    setBakongCheckBusy(false);
+    resetBakong();
   };
 
   const validateCheckoutForm = () => {
@@ -387,17 +252,29 @@ export default function CartPage() {
   };
 
   const placeOrder = (isPickupPaid: boolean) => {
-    const order = createOrderFromCart(cartItems, cartTotal, {
+    const form = {
       fullName: checkoutForm.fullName,
       contactNumber: checkoutForm.contactNumber,
       fulfillmentMethod: checkoutForm.fulfillmentMethod,
       deliveryAddress: checkoutForm.deliveryAddress,
-    });
+    };
 
-    order.status = isPickupPaid ? 'completed' : order.status;
+    const usesApiBasket =
+      status === 'authenticated' && Boolean(latestAccountOrder?.items.length);
+
+    let order;
+    if (usesApiBasket && latestAccountOrder) {
+      order = snapshotApiOrderAfterCheckout(latestAccountOrder, form, isPickupPaid);
+    } else {
+      order = createOrderFromCart(cartItems, cartTotal, form);
+      order.status = isPickupPaid ? 'completed' : order.status;
+    }
+
     saveOrderToHistory(order);
     closeCheckoutDialog();
-    clearCart();
+    if (!usesApiBasket) {
+      clearCart();
+    }
     router.push('/history');
   };
 
@@ -437,14 +314,6 @@ export default function CartPage() {
         /404|not found/i.test(res.error)
       ) {
         setStoredPaymentProfileId(null);
-        const uid = session?.user?.id;
-        if (typeof window !== 'undefined' && uid) {
-          try {
-            sessionStorage.removeItem(paymentProfileStorageKey(uid));
-          } catch {
-            /* ignore */
-          }
-        }
         res = await createPaymentProfileAction(body);
       }
 
@@ -464,14 +333,6 @@ export default function CartPage() {
           : null;
       if (returnedId) {
         setStoredPaymentProfileId(returnedId);
-        const uid = session?.user?.id;
-        if (typeof window !== 'undefined' && uid) {
-          try {
-            sessionStorage.setItem(paymentProfileStorageKey(uid), returnedId);
-          } catch {
-            /* ignore */
-          }
-        }
       }
 
       showToast({
@@ -494,39 +355,49 @@ export default function CartPage() {
     }
   };
 
-  const handleAlreadyPaid = () => {
-    placeOrder(true);
-  };
+  const handleAlreadyPaid = async () => {
+    const usesApiBasket =
+      status === 'authenticated' && Boolean(latestAccountOrder?.items.length);
 
-  const handleCheckBakongPayment = async () => {
-    if (!bakongMd5) {
-      showToast({
-        header: 'Not ready yet',
-        message: 'KHQR fingerprint (md5) was not returned from generate-qr.',
-        variant: 'warning',
-      });
+    if (!usesApiBasket || !latestAccountOrder) {
+      placeOrder(true);
       return;
     }
-    setBakongCheckBusy(true);
+
+    setPickupPaidSubmitting(true);
     try {
-      const res = await bakongCheckTransactionAction({ md5: bakongMd5 });
+      const paidAt = new Date().toISOString();
+      const transactionId =
+        bakongMd5 != null && bakongMd5.trim() !== ''
+          ? `bakong-md5:${bakongMd5.trim()}`
+          : `bakong:${Date.now()}`;
+
+      const res = await createPaymentAction({
+        orderId: latestAccountOrder.id,
+        paymentMethod: 'BAKONG',
+        paymentStatus: 'PAID',
+        transactionId,
+        paidAt,
+      });
+
       if (!res.success) {
         showToast({
-          header: 'Check failed',
-          message: res.error ?? 'Verify payment with your bank.',
+          header: 'Payment not recorded',
+          message: res.error ?? 'The server did not confirm this payment.',
           variant: 'error',
         });
         return;
       }
-      const snippet =
-        res.data !== undefined ? JSON.stringify(res.data).slice(0, 400) : 'OK';
+
       showToast({
-        header: 'Bakong check',
-        message: snippet,
+        header: 'Payment confirmed',
+        message: 'Your order status was updated.',
         variant: 'success',
       });
+      await reloadServerOrders();
+      placeOrder(true);
     } finally {
-      setBakongCheckBusy(false);
+      setPickupPaidSubmitting(false);
     }
   };
 
@@ -556,12 +427,11 @@ export default function CartPage() {
         {showCheckoutGrid ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-10">
-              {/* {hasAccountOrderLines && latestAccountOrder ? (
-                <section aria-labelledby="account-order-heading">
+              {summaryUsesApiTotals && latestAccountOrder ? (
+                <section aria-labelledby="basket-heading">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <h2 id="account-order-heading" className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                      <Package className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-                      Latest order from your account
+                    <h2 id="basket-heading" className="text-lg font-bold text-gray-900">
+                      In your basket
                     </h2>
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       <span className="rounded-full bg-secondary px-3 py-1 font-medium capitalize text-gray-700">
@@ -576,10 +446,9 @@ export default function CartPage() {
                       </button>
                     </div>
                   </div>
-                  <p className="mb-4 text-xs text-muted-foreground">
-                    Order {latestAccountOrder.id} · {latestAccountOrder.date}. Updates and removals use{' '}
-                    <code className="rounded bg-secondary px-1">{apiBaseUrl.baseUrl}/api/v1/order-items</code>.
-                  </p>
+                  {/* <p className="mb-4 text-xs text-muted-foreground">
+                    Order {latestAccountOrder.id} · {latestAccountOrder.date}. Quantity and removals sync with your account.
+                  </p> */}
                   <div className="space-y-4">
                     {latestAccountOrder.items.map((line) => {
                       const busy = syncingLineId === line.id;
@@ -587,7 +456,7 @@ export default function CartPage() {
                       return (
                         <div
                           key={line.id}
-                          className="flex gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+                          className="flex gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-lg"
                         >
                           <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                             <img
@@ -648,11 +517,11 @@ export default function CartPage() {
                     })}
                   </div>
                 </section>
-              ) : null} */}
+              ) : null}
 
-              {hasBasket ? (
-                <section aria-labelledby="basket-heading">
-                  <h2 id="basket-heading" className="mb-4 text-lg font-bold text-gray-900">
+              {isGuest && hasLocalBasket ? (
+                <section aria-labelledby="local-basket-heading">
+                  <h2 id="local-basket-heading" className="mb-4 text-lg font-bold text-gray-900">
                     In your basket
                   </h2>
                   <div className="space-y-4">
@@ -715,7 +584,7 @@ export default function CartPage() {
                     <span>Subtotal</span>
                     <span>${summarySubtotal.toFixed(2)}</span>
                   </div>
-                  {summaryUsesAccountTotal ? (
+                  {summaryUsesApiTotals ? (
                     <>
                       <div className="flex justify-between text-gray-600">
                         <span>Shipping</span>
@@ -732,7 +601,7 @@ export default function CartPage() {
                       <span className="text-muted-foreground">—</span>
                     </div>
                   )}
-                  {!summaryUsesAccountTotal ? (
+                  {!summaryUsesApiTotals ? (
                     <p className="text-xs text-muted-foreground">
                       Totals reflect your basket only — no estimated tax applied. Final amounts come from checkout / your order API.
                     </p>
@@ -744,36 +613,31 @@ export default function CartPage() {
                     <span>Total</span>
                     <span>${summaryGrandTotal.toFixed(2)}</span>
                   </div>
-                  {summaryUsesAccountTotal ? (
+                  {summaryUsesApiTotals ? (
                     <p className="mt-2 text-xs text-muted-foreground">
                       Total matches your saved order ({latestAccountOrder?.id?.slice(0, 8)}…).
-                    </p>
-                  ) : null}
-                  {hasBasket && hasAccountOrderLines ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Amounts reflect your editable basket only; the synced order block above is from your account.
                     </p>
                   ) : null}
                 </div>
 
                 <div className="space-y-3 pt-6">
-                  {hasBasket ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setIsCheckoutOpen(true)}
-                        className="w-full rounded-xl bg-primary py-3 font-semibold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:shadow-xl"
-                      >
-                        Proceed to Checkout
-                      </button>
-                      <button
-                        type="button"
-                        onClick={clearCart}
-                        className="w-full py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-                      >
-                        Clear Cart
-                      </button>
-                    </>
+                  {showCheckoutGrid ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCheckoutOpen(true)}
+                      className="w-full rounded-xl bg-primary py-3 font-semibold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:shadow-xl"
+                    >
+                      Proceed to Checkout
+                    </button>
+                  ) : null}
+                  {isGuest && hasLocalBasket ? (
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="w-full py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      Clear Cart
+                    </button>
                   ) : null}
                   <button
                     type="button"
@@ -782,7 +646,7 @@ export default function CartPage() {
                   >
                     Continue Shopping
                   </button>
-                  {summaryUsesAccountTotal ? (
+                  {summaryUsesApiTotals ? (
                     <button
                       type="button"
                       onClick={() => router.push('/history')}
@@ -863,12 +727,12 @@ export default function CartPage() {
             </DialogTitle>
             {checkoutStep === 'details' ? (
               <DialogDescription className="text-center">
-                Choose pickup or delivery. We POST or PUT{' '}
-                <span className="font-medium text-foreground">/api/v1/payment-profiles</span> before you continue.
+                {/* Choose pickup or delivery. We POST or PUT{' '}
+                <span className="font-medium text-foreground">/api/v1/payment-profiles</span> before you continue. */}
               </DialogDescription>
             ) : (
               <DialogDescription className="text-center text-sm text-muted-foreground">
-                Scan with any Cambodian bank app that supports Bakong KHQR (NBC).
+                Pay in <span className="font-medium text-foreground">US dollars (USD)</span> only — scan with a Bakong KHQR–enabled app.
               </DialogDescription>
             )}
           </DialogHeader>
@@ -983,81 +847,78 @@ export default function CartPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/*
-                Single “receipt card” layout aligned with NBC KHQR presentment (reference):
-                red header + white body, payer, amount, dashed rule, centred QR with national mark.
+                Compact USD-only KHQR card: balanced padding, smaller QR for even margins.
               */}
               {(() => {
                 const payNum = Number.isFinite(summaryGrandTotal) ? Math.max(summaryGrandTotal, 0) : 0;
-                const amountMain = new Intl.NumberFormat('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
+                const amountUsd = new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
                 }).format(payNum);
                 const payerLabel = checkoutForm.fullName.trim() || 'Customer';
+                const qrClass = 'h-[140px] w-[140px]';
                 return (
-                  <div className="mx-auto w-full max-w-[300px] overflow-hidden rounded-2xl bg-white shadow-[0_10px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06]">
-                    <div className="relative bg-[#E11D2E] px-5 pb-12 pt-6">
+                  <div className="mx-auto w-full max-w-[240px] overflow-hidden rounded-xl bg-white shadow-[0_6px_20px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.06]">
+                    <div className="relative bg-[#E11D2E] px-3 pb-6 pt-3">
                       <div className="flex justify-center">
                         <img
                           src={KHQR_ASSETS.logoSvg}
                           alt="KHQR"
-                          className="h-9 w-auto object-contain brightness-0 invert"
+                          className="h-6 w-auto object-contain brightness-0 invert"
                         />
                       </div>
                       <div
-                        className="absolute bottom-0 right-0 border-b-[42px] border-l-[42px] border-b-white border-l-transparent"
+                        className="absolute bottom-0 right-0 border-b-[22px] border-l-[22px] border-b-white border-l-transparent"
                         aria-hidden
                       />
                     </div>
 
-                    <div className="relative -mt-px bg-white px-5 pb-6 pt-6 text-black">
-                      <p className="text-center font-medium leading-tight tracking-tight text-gray-900">
+                    <div className="relative -mt-px bg-white px-3 pb-3 pt-3 text-black">
+                      <p className="text-center text-xs font-medium leading-tight tracking-tight text-gray-900">
                         {payerLabel}
                       </p>
-                      <p className="mt-5 flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
-                        <span className="text-[1.85rem] font-bold leading-none tabular-nums tracking-tight">
-                          {amountMain}
+                      <p className="mt-1.5 text-center">
+                        <span className="text-xl font-bold leading-none tabular-nums tracking-tight text-gray-900">
+                          {amountUsd}
                         </span>
-                        <span className="text-sm font-semibold uppercase text-gray-800">USD</span>
                       </p>
-                      <p className="mt-3 text-center text-[10px] text-gray-400">
-                        {BAKONG_MERCHANT_DISPLAY_NAME}
-                      </p>
+                      <p className="mt-1 text-center text-[9px] text-gray-400 leading-tight">{BAKONG_MERCHANT_DISPLAY_NAME}</p>
 
-                      <div
-                        className="my-5 border-t border-dashed border-gray-300"
-                        aria-hidden
-                      />
+                      <div className="my-2 border-t border-dashed border-gray-300" aria-hidden />
 
-                      <div className="relative mx-auto flex w-full max-w-[240px] justify-center pb-2">
-                        <div className="relative rounded-lg bg-white p-2">
+                      <div className="relative mx-auto flex w-full justify-center px-0.5 pb-0.5">
+                        <div className="relative rounded-md bg-white p-1">
                           {bakongQrLoading ? (
-                            <div className="flex h-[220px] w-[220px] flex-col items-center justify-center gap-2 rounded-md bg-gray-50 text-xs text-muted-foreground">
-                              <Loader2 className="h-8 w-8 animate-spin text-[#E11D2E]" aria-hidden />
-                              Generating KHQR…
+                            <div
+                              className={`flex flex-col items-center justify-center gap-1.5 rounded-md bg-gray-50 text-[10px] text-muted-foreground ${qrClass}`}
+                            >
+                              <Loader2 className="h-6 w-6 animate-spin text-[#E11D2E]" aria-hidden />
+                              Generating QR…
                             </div>
                           ) : bakongQrImageDataUrl ? (
-                            <img
-                              src={bakongQrImageDataUrl}
-                              alt="KHQR payment code"
-                              width={220}
-                              height={220}
-                              className="h-[220px] w-[220px] rounded-md object-contain"
-                            />
+                            <div className="relative rounded-md">
+                              <img
+                                src={bakongQrImageDataUrl}
+                                alt="KHQR payment code"
+                                width={140}
+                                height={140}
+                                className={`rounded-md object-contain ${qrClass} ${khqrExpired ? 'opacity-[0.38]' : ''}`}
+                              />
+                              {khqrExpired ? (
+                                <div className="absolute inset-0 flex items-center justify-center rounded-md bg-white/78 px-1.5 text-center text-[9px] font-semibold uppercase leading-snug tracking-wide text-gray-800 ring-1 ring-inset ring-gray-900/10">
+                                  Expired
+                                </div>
+                              ) : null}
+                            </div>
                           ) : (
-                            <div className="flex h-[220px] w-[220px] items-center justify-center rounded-md bg-gray-50 px-3 text-center text-[11px] text-muted-foreground">
+                            <div
+                              className={`flex items-center justify-center rounded-md bg-gray-50 px-2 text-center text-[10px] text-muted-foreground leading-snug ${qrClass}`}
+                            >
                               {bakongQrError ?? 'QR unavailable'}
                             </div>
                           )}
-                          {bakongQrImageDataUrl && !bakongQrLoading ? (
-                            <div
-                              className="pointer-events-none absolute left-1/2 top-1/2 flex h-[52px] w-[52px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black text-[1.65rem] text-white shadow-sm ring-[3px] ring-white"
-                              aria-hidden
-                            >
-                              ៛
-                            </div>
-                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -1065,21 +926,68 @@ export default function CartPage() {
                 );
               })()}
 
+              {khqrSecondsRemaining !== null && !bakongQrLoading ? (
+                <div className="-mt-1 flex justify-center px-1">
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className={cn(
+                      'inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-2 shadow-sm ring-1 ring-black/[0.04]',
+                      khqrExpired &&
+                        'border-red-300/80 bg-gradient-to-br from-red-50 via-white to-red-50/30 text-red-800',
+                      !khqrExpired &&
+                        khqrSecondsRemaining <= 120 &&
+                        'border-amber-300/70 bg-gradient-to-br from-amber-50 via-white to-orange-50/40 text-amber-950 shadow-amber-200/40',
+                      !khqrExpired &&
+                        khqrSecondsRemaining > 120 &&
+                        'border-gray-200/90 bg-gradient-to-b from-muted/70 to-background text-gray-800',
+                    )}
+                  >
+                    <Clock
+                      aria-hidden
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0 stroke-[2.25]',
+                        khqrExpired && 'text-red-600',
+                        !khqrExpired && khqrSecondsRemaining <= 120 && 'animate-pulse text-amber-600',
+                        !khqrExpired && khqrSecondsRemaining > 120 && 'text-[#c91928]',
+                      )}
+                    />
+                    {khqrExpired ? (
+                      <span className="text-center text-[10px] font-semibold leading-snug tracking-tight sm:text-[11px]">
+                        QR expired — use <span className="text-red-900">Back to details</span>, then generate a new code
+                      </span>
+                    ) : (
+                      <span className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 text-[11px] font-semibold leading-none">
+                        <span className="translate-y-[0.5px] text-[10px] font-medium uppercase tracking-wider opacity-65">
+                          Valid for
+                        </span>
+                        <span className="font-mono text-xs tabular-nums tracking-wide text-current">
+                          {`${Math.floor(khqrSecondsRemaining / 60)}:${(khqrSecondsRemaining % 60)
+                            .toString()
+                            .padStart(2, '0')}`}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="flex flex-col gap-2 pt-1">
+
                 <button
                   type="button"
-                  disabled={bakongCheckBusy || !bakongMd5}
-                  onClick={() => void handleCheckBakongPayment()}
-                  className="w-full rounded-xl border-2 border-primary py-2.5 font-semibold text-primary transition-all hover:bg-primary/5 disabled:opacity-50"
+                  disabled={isPickupPaidSubmitting}
+                  onClick={() => void handleAlreadyPaid()}
+                  className="w-full rounded-xl bg-[#E11D2E] py-2.5 font-semibold text-white transition-all hover:bg-[#c91928] disabled:opacity-60"
                 >
-                  {bakongCheckBusy ? 'Checking Bakong…' : 'Check payment (HTTP)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAlreadyPaid()}
-                  className="w-full rounded-xl bg-[#E11D2E] py-2.5 font-semibold text-white transition-all hover:bg-[#c91928]"
-                >
-                  I have paid · complete order
+                  {isPickupPaidSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 inline h-4 w-4 animate-spin align-text-bottom" aria-hidden />
+                      Confirming…
+                    </>
+                  ) : (
+                    'I have paid · complete order'
+                  )}
                 </button>
                 <button
                   type="button"

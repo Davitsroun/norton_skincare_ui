@@ -40,6 +40,25 @@ export const saveOrderToHistory = (order: Order) => {
   localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify([order, ...existingOrders]));
 };
 
+/** Persist a signed-in user’s latest API order into local history after checkout. */
+export const snapshotApiOrderAfterCheckout = (
+  source: Order,
+  formData: CheckoutFormData,
+  isPickupPaid: boolean,
+): Order => {
+  return {
+    ...source,
+    fulfillmentMethod: formData.fulfillmentMethod,
+    customerName: formData.fullName.trim(),
+    contactNumber: formData.contactNumber.trim(),
+    deliveryAddress:
+      formData.fulfillmentMethod === 'delivery' ? formData.deliveryAddress?.trim() : undefined,
+    paymentMethod:
+      formData.fulfillmentMethod === 'pickup' ? 'khqr' : 'cash-on-delivery',
+    status: isPickupPaid ? 'completed' : source.status,
+  };
+};
+
 export const createOrderFromCart = (
   items: CartItem[],
   cartTotal: number,

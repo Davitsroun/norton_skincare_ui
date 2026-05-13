@@ -40,6 +40,7 @@ export async function createOrderService(payload: CreateOrderRequest): Promise<u
   return text.trim() ? (JSON.parse(text) as unknown) : null;
 }
 
+/** `GET /api/v1/orders` — pending / processing (open checkout) only. */
 export async function listOrdersService(params?: OrderListParams): Promise<Order[]> {
   const url = orderRoute.ordersList(params);
   const token = await getKeycloakToken();
@@ -63,6 +64,36 @@ export async function listOrdersService(params?: OrderListParams): Promise<Order
   const raw: unknown = await response.json();
   if (isRecord(raw) && raw.success === false) {
     const msg = typeof raw.message === 'string' ? raw.message : 'Orders request failed.';
+    throw new Error(msg);
+  }
+
+  return normalizeOrdersPayload(raw);
+}
+
+/** `GET /api/v1/orders/history` — paid / completed orders. */
+export async function listOrderHistoryService(params?: OrderListParams): Promise<Order[]> {
+  const url = orderRoute.ordersHistoryList(params);
+  const token = await getKeycloakToken();
+  if (!token) {
+    throw new Error('Sign in required.');
+  }
+
+  const response = await fetch(url, {
+    method: 'GET',
+    cache: 'no-store',
+    headers: {
+      accept: '*/*',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Order history request failed (${response.status})`);
+  }
+
+  const raw: unknown = await response.json();
+  if (isRecord(raw) && raw.success === false) {
+    const msg = typeof raw.message === 'string' ? raw.message : 'Order history request failed.';
     throw new Error(msg);
   }
 

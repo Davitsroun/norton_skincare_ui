@@ -1,30 +1,79 @@
 'use client';
 
+import { listOrderHistoryAction } from '@/actions/order-actions';
 import { PageHeader } from '@/components/page-header';
 import { ProtectedRoute } from '@/components/protected-route';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { mockOrderHistory } from '@/lib/mock-data/index';
-import type { Order } from '@/types/order';
 import { getStoredOrders } from '@/lib/order-storage';
+import type { Order } from '@/types/order';
 import { ChevronDown, Package } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { jsPDF } from 'jspdf';
 
 type OrderStatus = 'all' | 'completed' | 'pending' | 'shipped' | 'cancelled';
+
+/** Server-paid orders plus any local snapshots not yet on the API (same id → API wins). */
+function mergeOrderHistory(apiOrders: Order[], localOrders: Order[]): Order[] {
+  const seen = new Set<string>();
+  const merged: Order[] = [];
+  for (const o of apiOrders) {
+    seen.add(o.id);
+    merged.push(o);
+  }
+  for (const o of localOrders) {
+    if (!seen.has(o.id)) {
+      merged.push(o);
+    }
+  }
+  merged.sort((a, b) => {
+    const db = Date.parse(`${b.date}T12:00:00`);
+    const da = Date.parse(`${a.date}T12:00:00`);
+    const safeB = Number.isNaN(db) ? 0 : db;
+    const safeA = Number.isNaN(da) ? 0 : da;
+    return safeB - safeA;
+  });
+  return merged;
+}
 
 export default function HistoryPage() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>('all');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [savedOrders, setSavedOrders] = useState<Order[]>([]);
+  const [serverHistoryOrders, setServerHistoryOrders] = useState<Order[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsPageLoading(false), 800);
-    setSavedOrders(getStoredOrders());
-    return () => clearTimeout(timer);
+    let cancelled = false;
+
+    void (async () => {
+      setIsPageLoading(true);
+      setHistoryError(null);
+      setSavedOrders(getStoredOrders());
+
+      const result = await listOrderHistoryAction({ page: 0, size: 100 });
+      if (cancelled) {
+        return;
+      }
+
+      if (result.success && result.data) {
+        setServerHistoryOrders(result.data);
+      } else {
+        setServerHistoryOrders([]);
+        setHistoryError(result.error ?? 'Could not load order history from the server.');
+      }
+      setIsPageLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const allOrders = useMemo(() => [...savedOrders, ...mockOrderHistory], [savedOrders]);
+  const allOrders = useMemo(
+    () => mergeOrderHistory(serverHistoryOrders, savedOrders),
+    [serverHistoryOrders, savedOrders],
+  );
 
   const filteredOrders =
     selectedStatus === 'all'
@@ -210,11 +259,20 @@ export default function HistoryPage() {
             titleGradient="History"
             description={
               <>
-                View and manage all your orders with{' '}
-                <span className="font-medium text-primary">Nature Leaf</span>
+                Completed purchases from your account. Orders still being checked out stay on{' '}
+                <span className="font-medium text-primary">Shopping Cart</span> until paid.
               </>
             }
           />
+
+          {historyError ? (
+            <div
+              className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+              role="alert"
+            >
+              {historyError}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {summaryStats.map((stat) => (

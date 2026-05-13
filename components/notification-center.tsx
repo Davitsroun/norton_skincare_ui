@@ -1,13 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useNotification } from '@/lib/notification-context';
-import { Bell, X, Gift, Package, ShoppingCart, Info, BellOff } from 'lucide-react';
+import {
+  type WebPushUiSnapshot,
+  getWebPushEnrollmentSnapshot,
+  requestWebPushSubscription,
+} from '@/lib/onesignal';
+import { Bell, X, Gift, Package, ShoppingCart, Info, BellOff, Loader2 } from 'lucide-react';
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
-  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll } = useNotification();
+  const [pushUi, setPushUi] = useState<WebPushUiSnapshot | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  const { data: session } = useSession();
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    error,
+    refreshNotifications,
+    markAsRead,
+    markAllAsRead,
+    removeNotification,
+    clearAll,
+  } = useNotification();
 
   const getIcon = (iconType: string) => {
     switch (iconType) {
@@ -36,25 +55,21 @@ export function NotificationCenter() {
     return date.toLocaleDateString();
   };
 
-  const groupedNotifications = {
-    today: notifications.filter((n) => {
-      const now = new Date();
-      const notifDate = new Date(n.timestamp);
-      return now.toDateString() === notifDate.toDateString();
-    }),
-    thisWeek: notifications.filter((n) => {
-      const now = new Date();
-      const notifDate = new Date(n.timestamp);
-      const daysAgo = Math.floor((now.getTime() - notifDate.getTime()) / 86400000);
-      return daysAgo >= 1 && daysAgo < 7;
-    }),
-    earlier: notifications.filter((n) => {
-      const now = new Date();
-      const notifDate = new Date(n.timestamp);
-      const daysAgo = Math.floor((now.getTime() - notifDate.getTime()) / 86400000);
-      return daysAgo >= 7;
-    }),
-  };
+  useEffect(() => {
+    if (isOpen) {
+      void refreshNotifications();
+    }
+  }, [isOpen, refreshNotifications]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    void (async () => {
+      const snapshot = await getWebPushEnrollmentSnapshot();
+      setPushUi(snapshot);
+    })();
+  }, [isOpen]);
 
   return (
     <div className="relative mt-2">
@@ -94,6 +109,60 @@ export function NotificationCenter() {
               </button>
             </div>
 
+            {error ? (
+              <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                {error}
+              </div>
+            ) : null}
+
+            {pushUi?.configured && pushUi.supported ? (
+              <div className="mx-4 mt-3 rounded-lg border border-sky-100 bg-sky-50/90 px-3 py-2.5 text-sm text-sky-950">
+                {pushUi.optedIn ? (
+                  <p className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <span>Browser notifications are enabled for this site.</span>
+                  </p>
+                ) : pushUi.permission === 'denied' ? (
+                  <p className="flex items-start gap-2 text-amber-900">
+                    <BellOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    <span>
+                      Notifications are blocked in your browser. Allow notifications for this site in your browser
+                      settings, then open this panel again.
+                    </span>
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="min-w-0 pr-2">
+                      Allow browser alerts for order updates and offers (works best while signed in).
+                    </p>
+                    <button
+                      type="button"
+                      disabled={pushBusy}
+                      className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-60"
+                      onClick={() => {
+                        setPushBusy(true);
+                        void requestWebPushSubscription(session?.user?.id ?? null)
+                          .then(setPushUi)
+                          .finally(() => setPushBusy(false));
+                      }}
+                    >
+                      {pushBusy ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                          Enabling…
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="h-3.5 w-3.5" aria-hidden />
+                          Enable notifications
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
             {/* Filter Tabs */}
             <div className="flex gap-2 px-4 pt-3 border-b border-gray-100">
               <h2 className="text-medium font-medium text-gray-900 mb-1">Earlier</h2>
@@ -110,7 +179,12 @@ export function NotificationCenter() {
 
             {/* Notifications List */}
             <div className="overflow-y-auto flex-1">
-              {notifications.length === 0 ? (
+              {loading && notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 h-40 text-muted-foreground">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" aria-hidden />
+                  <p className="text-sm">Loading notifications…</p>
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="flex items-center justify-center h-40 text-gray-500">
                   <BellOff className="w-5 h-5 text-gray-500" />
                   <p>No notifications</p>
@@ -121,8 +195,8 @@ export function NotificationCenter() {
                     <div
                       key={notification.id}
                       onClick={() => {
-                        markAsRead(notification.id);
                         setSelectedNotification(notification.id);
+                        void markAsRead(notification.id);
                       }}
                       className={`p-4 cursor-pointer transition-colors border-l-4 ${
                         !notification.read 
@@ -156,7 +230,7 @@ export function NotificationCenter() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            removeNotification(notification.id);
+                            void removeNotification(notification.id);
                           }}
                           className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-red-500"
                         >
@@ -174,9 +248,7 @@ export function NotificationCenter() {
               <div className="flex gap-2 p-3 border-t border-gray-100 bg-gray-50">
                 <button
                   type="button"
-                  onClick={() => {
-                    markAllAsRead();
-                  }}
+                  onClick={() => void markAllAsRead()}
                   className="flex-1 cursor-pointer text-sm font-medium text-primary hover:text-primary/80"
                 >
                   Mark all as read
@@ -184,7 +256,7 @@ export function NotificationCenter() {
                 <button
                   type="button"
                   onClick={() => {
-                    clearAll();
+                    void clearAll();
                     setIsOpen(false);
                   }}
                   className="flex-1 cursor-pointer text-sm font-medium text-red-600 hover:text-red-700"
@@ -253,7 +325,7 @@ export function NotificationCenter() {
                   <button
                     type="button"
                     onClick={() => {
-                      removeNotification(selectedNotification);
+                      void removeNotification(selectedNotification);
                       setSelectedNotification(null);
                     }}
                     className="flex-1 cursor-pointer rounded-lg border border-red-300 px-4 py-2 font-semibold text-red-600 transition-colors hover:bg-red-50"

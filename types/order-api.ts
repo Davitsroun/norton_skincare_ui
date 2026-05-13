@@ -32,7 +32,11 @@ export type OrderItemsListParams = {
   size?: number;
 };
 
-/** GET /api/v1/orders?page=&size= */
+/**
+ * Pagination for:
+ * - `GET /api/v1/orders` — active carts only (`pending` / `processing`).
+ * - `GET /api/v1/orders/history` — paid / completed orders.
+ */
 export type OrderListParams = {
   page?: number;
   size?: number;

@@ -40,6 +40,7 @@ export async function addFavoriteBrandService(body: FavoriteBrandCreateRequest):
   if (!token) {
     throw new Error('Sign in required.');
   }
+  console.log('body', token);
 
   const response = await fetch(url, {
     method: 'POST',
