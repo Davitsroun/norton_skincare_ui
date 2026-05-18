@@ -26,6 +26,9 @@ type KeycloakTokenResponse = {
   error_description?: string;
 };
 
+/** Omit `offline_access` unless the Keycloak client enables offline sessions — otherwise password/OIDC grants return `not_allowed`. */
+const KEYCLOAK_LOGIN_SCOPE = 'openid profile email';
+
 type KeycloakCredentialsUser = {
   id: string;
   email?: string;
@@ -118,7 +121,7 @@ async function authorizeWithKeycloak(
     client_id: clientId,
     username,
     password,
-    scope: 'openid profile email offline_access',
+    scope: KEYCLOAK_LOGIN_SCOPE,
   });
 
 
@@ -266,7 +269,7 @@ export const authOptions: NextAuthOptions = {
       issuer: process.env.KEYCLOAK_ISSUER ?? 'http://localhost:8081/realms/rest-api',
       authorization: {
         params: {
-          scope: 'openid email profile offline_access',
+          scope: KEYCLOAK_LOGIN_SCOPE,
           kc_idp_hint: 'google',
         },
       },
@@ -279,7 +282,7 @@ export const authOptions: NextAuthOptions = {
       issuer: process.env.KEYCLOAK_ISSUER ?? 'http://localhost:8081/realms/rest-api',
       authorization: {
         params: {
-          scope: 'openid email profile offline_access',
+          scope: KEYCLOAK_LOGIN_SCOPE,
           kc_idp_hint: 'github',
         },
       },

@@ -5,7 +5,6 @@ import { SessionProvider } from 'next-auth/react';
 import { AuthProvider } from '@/lib/auth-context';
 import { CartProvider } from '@/lib/cart-context';
 import { NotificationProvider } from '@/lib/notification-context';
-import { OneSignalSubscriber } from '@/components/one-signal-subscriber';
 import { Toaster } from '@/components/ui/toaster';
 import { ModernToastProvider } from '@/components/modern-toast';
 
@@ -16,7 +15,6 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
-      <OneSignalSubscriber />
       <AuthProvider>
         <CartProvider>
           <ModernToastProvider>

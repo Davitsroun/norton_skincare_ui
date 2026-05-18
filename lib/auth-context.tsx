@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { signIn, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
+import { getSession, signIn, signOut as nextAuthSignOut, useSession } from 'next-auth/react';
 import type { ReactNode } from 'react';
 import { registerAction } from '@/actions/auth-actions';
 import { ADMIN_ROLE, hasAnyRole } from '@/lib/auth/roles';
@@ -161,9 +161,13 @@ export function useAuth() {
       return { success: false, isAdmin: false };
     }
 
+    /** Client session updates asynchronously after `signIn`; wait so redirects and `isAdmin` are correct. */
+    const session = await getSession();
+    const isAdmin = Boolean(session?.user?.isAdmin);
+
     return {
       success: true,
-      isAdmin: false,
+      isAdmin,
     };
   };
 

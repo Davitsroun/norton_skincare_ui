@@ -74,6 +74,8 @@ export async function listOrdersService(params?: OrderListParams): Promise<Order
 export async function listOrderHistoryService(params?: OrderListParams): Promise<Order[]> {
   const url = orderRoute.ordersHistoryList(params);
   const token = await getKeycloakToken();
+  console.log("url", url);
+  console.log("Tokennnnnn", token)
   if (!token) {
     throw new Error('Sign in required.');
   }

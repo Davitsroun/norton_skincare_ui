@@ -63,6 +63,8 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
+      loginInFlightRef.current = false;
+      setIsLoading(false);
       router.replace(result.isAdmin ? '/admin' : '/home');
     } catch {
       setErrors({ username: 'Unable to log in with Keycloak. Please try again.' });

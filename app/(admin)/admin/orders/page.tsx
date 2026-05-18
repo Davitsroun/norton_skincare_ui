@@ -1,252 +1,278 @@
 ﻿'use client';
 
 import { AdminPageShell } from '@/components/admin-page-shell';
-import { ConfirmationDialog } from '@/components/confirmation-dialog';
-import { useState } from 'react';
-import { Search, ChevronDown, Eye, Trash2 } from 'lucide-react';
+import {
+  listAdminOrdersAction,
+  patchAdminOrderStatusAction,
+} from '@/actions/admin-actions';
+import type { AdminOrderRow } from '@/types/admin-api';
+import {
+  adminOrderFilterToQuery,
+  apiOrderStatusToPatchValue,
+  formatAdminCurrency,
+  type AdminOrderStatusFilter,
+  type PatchOrderStatusValue,
+} from '@/lib/admin-format';
+import { Search, ChevronDown, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { mockAdminOrders } from '@/lib/mock-data/index';
+
+const PAGE_SIZE = 10;
+
+function selectStylesForPatch(patch: PatchOrderStatusValue): string {
+  if (patch === 'pending') {
+    return 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200';
+  }
+  if (patch === 'shipped') {
+    return 'bg-blue-100 text-blue-700 hover:bg-blue-200';
+  }
+  return 'bg-green-100 text-green-700 hover:bg-green-200';
+}
 
 export default function AdminOrders() {
   const { toast } = useToast();
-  const [orders, setOrders] = useState(mockAdminOrders);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [orders, setOrders] = useState<AdminOrderRow[]>([]);
+  const [pagination, setPagination] = useState({
+    totalElements: 0,
+    currentPage: 0,
+    pageSize: PAGE_SIZE,
+    totalPages: 1,
+  });
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<AdminOrderStatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    setListError(null);
+    const statusQuery = adminOrderFilterToQuery(statusFilter);
+    const result = await listAdminOrdersAction({
+      page,
+      size: PAGE_SIZE,
+      status: statusQuery,
+    });
+    if (!result.success || !result.data) {
+      setListError(result.error ?? 'Could not load orders.');
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+    setOrders(result.data.items);
+    setPagination(result.data.pagination);
+    setLoading(false);
+  }, [page, statusFilter]);
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter]);
 
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus = statusFilter === 'all' || order.status.toLowerCase() === statusFilter.toLowerCase();
-    const matchesSearch = order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.id.includes(searchQuery);
-    return matchesStatus && matchesSearch;
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      return true;
+    }
+    return (
+      order.customerName.toLowerCase().includes(q) ||
+      order.customerEmail.toLowerCase().includes(q) ||
+      order.id.toLowerCase().includes(q)
+    );
   });
 
-  const handleDeleteOrder = (orderId: string) => {
-    setOrderToDelete(orderId);
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteOrder = () => {
-    if (orderToDelete) {
-      setOrders(orders.filter(order => order.id !== orderToDelete));
-      toast({
-        title: 'Order Deleted',
-        description: `Order ${orderToDelete} has been successfully deleted.`,
-      });
-      setShowDeleteConfirm(false);
-      setOrderToDelete(null);
-    }
-  };
-
-  const handleStatusChange = (
-    orderId: string,
-    newStatus: (typeof orders)[number]['status']
-  ) => {
-    const order = orders.find(o => o.id === orderId);
-    if (order && order.status !== newStatus) {
-      setOrders(orders.map(o => 
-        o.id === orderId ? { ...o, status: newStatus } : o
-      ));
-      toast({
-        title: 'Status Updated',
-        description: `Order ${orderId} status changed to ${newStatus}.`,
-      });
-    }
-  };
-
-  const handleSelectOrder = (orderId: string) => {
-    setSelectedOrders(prev =>
-      prev.includes(orderId)
-        ? prev.filter(id => id !== orderId)
-        : [...prev, orderId]
+  const handleStatusChange = async (orderId: string, newPatch: PatchOrderStatusValue) => {
+    const prev = orders;
+    setOrders((rows) =>
+      rows.map((o) =>
+        o.id === orderId ? { ...o, status: newPatch.toUpperCase() } : o,
+      ),
     );
+    const res = await patchAdminOrderStatusAction(orderId, { status: newPatch });
+    if (!res.success) {
+      setOrders(prev);
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: res.error ?? 'Could not update order status.',
+      });
+      return;
+    }
+    toast({
+      title: 'Status updated',
+      description: `Order ${orderId} is now ${newPatch}.`,
+    });
+    void loadOrders();
   };
 
-  const handleSelectAll = () => {
-    if (selectedOrders.length === filteredOrders.length) {
-      setSelectedOrders([]);
-    } else {
-      setSelectedOrders(filteredOrders.map(o => o.id));
-    }
+  const filterChip = (label: string, filter: AdminOrderStatusFilter) => {
+    const active =
+      filter === 'all'
+        ? statusFilter === 'all'
+        : statusFilter === filter;
+    return (
+      <button
+        type="button"
+        key={label}
+        onClick={() => setStatusFilter(filter)}
+        className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+          active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+        }`}
+      >
+        {label}
+      </button>
+    );
   };
 
   return (
     <AdminPageShell title="Orders" description="Manage all customer orders">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
-          {/* Header with Filters */}
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="text-sm text-gray-600">
-                <p className="font-semibold text-gray-900">{filteredOrders.length} orders found</p>
-              </div>
-
-              {/* Filters */}
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="flex items-center gap-2">
-                  {['All orders', 'Pending', 'Dispatched', 'Completed'].map((filter) => (
-                    <button
-                      key={filter}
-                      onClick={() => setStatusFilter(filter === 'All orders' ? 'all' : filter.toLowerCase())}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        (filter === 'All orders' && statusFilter === 'all') || 
-                        (filter !== 'All orders' && statusFilter === filter.toLowerCase())
-                          ? 'bg-primary text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Date Range */}
-                <div className="flex items-center gap-2">
-                  <input type="date" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                  <span className="text-gray-400">to</span>
-                  <input type="date" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                </div>
-              </div>
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-gray-600">
+              <p className="font-semibold text-gray-900">
+                {loading ? '…' : `${pagination.totalElements} orders`}
+              </p>
             </div>
 
-            {/* Search */}
-            <div className="mt-4 flex items-center gap-2 bg-gray-100 rounded-lg px-4 py-2">
-              <Search className="w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by customer or order ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent outline-none text-sm placeholder:text-gray-400"
-              />
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="flex flex-wrap items-center gap-2">
+                {filterChip('All orders', 'all')}
+                {filterChip('Pending', 'pending')}
+                {filterChip('Dispatched', 'dispatched')}
+                {filterChip('Completed', 'completed')}
+              </div>
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                    <input 
-                      type="checkbox" 
-                      className="rounded cursor-pointer"
-                      checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
-                      onChange={handleSelectAll}
-                    />
-                  </th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Name</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Address</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                    <span className="inline-flex items-center gap-1">
-                      Date <ChevronDown className="w-4 h-4" />
-                    </span>
-                  </th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                    <span className="inline-flex items-center gap-1">
-                      Price <ChevronDown className="w-4 h-4" />
-                    </span>
-                  </th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Status</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((order, idx) => (
-                  <tr
-                    key={order.id}
-                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                      selectedOrders.includes(order.id) ? 'bg-primary/5' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <input 
-                        type="checkbox" 
-                        className="rounded cursor-pointer"
-                        checked={selectedOrders.includes(order.id)}
-                        onChange={() => handleSelectOrder(order.id)}
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={order.avatar}
-                          alt={order.customer}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                        <div>
-                          <p className="font-semibold text-gray-900">{order.customer}</p>
-                          <p className="text-xs text-gray-500">{order.id}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-700">{order.address}</td>
-                    <td className="px-6 py-4 text-gray-700">{order.date}</td>
-                    <td className="px-6 py-4 font-semibold text-gray-900">{order.amount}</td>
-                    <td className="px-6 py-4">
-                      <select
-                        value={order.status}
-                        onChange={(e) =>
-                          handleStatusChange(order.id, e.target.value as (typeof orders)[number]['status'])
-                        }
-                        className={`px-3 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer transition-all ${
-                          order.status === 'Pending' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' :
-                          order.status === 'Dispatched' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' :
-                          'bg-green-100 text-green-700 hover:bg-green-200'
-                        }`}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Dispatched">Dispatched</option>
-                        <option value="Completed">Completed</option>
-                      </select>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {/* <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                          <Eye className="w-4 h-4 text-gray-600" />
-                        </button> */}
-                        <button 
-                          onClick={() => handleDeleteOrder(order.id)}
-                          className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-600">Showing {filteredOrders.length} of {mockAdminOrders.length} orders</p>
-            <div className="flex items-center gap-2">
-              <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Â«</button>
-              <button className="px-3 py-2 border border-primary bg-primary text-white rounded-lg">1</button>
-              <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">2</button>
-              <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Â»</button>
-            </div>
+          <div className="mt-4 flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2">
+            <Search className="h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by customer, email, or order ID…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
+            />
           </div>
         </div>
 
-        {/* Delete Confirmation Dialog */}
-        <ConfirmationDialog
-          isOpen={showDeleteConfirm}
-          title="Delete Order"
-          description={`Are you sure you want to delete order ${orderToDelete}? This action cannot be undone.`}
-          cancelText="Cancel"
-          confirmText="Delete Order"
-          isDangerous={true}
-          onCancel={() => {
-            setShowDeleteConfirm(false);
-            setOrderToDelete(null);
-          }}
-          onConfirm={confirmDeleteOrder}
-        />
-      </AdminPageShell>
+        {listError && (
+          <div className="border-b border-red-100 bg-red-50 px-6 py-3 text-sm text-red-800">
+            {listError}
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-gray-600">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              Loading orders…
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Customer</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Address</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                    <span className="inline-flex items-center gap-1">
+                      Date <ChevronDown className="h-4 w-4 opacity-40" />
+                    </span>
+                  </th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Price</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const patchValue = apiOrderStatusToPatchValue(order.status);
+                  return (
+                    <tr
+                      key={order.id}
+                      className="border-b border-gray-100 transition-colors hover:bg-gray-50"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={
+                              order.avatarUrl ||
+                              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(order.customerName)}`
+                            }
+                            alt=""
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
+                          <div>
+                            <p className="font-semibold text-gray-900">{order.customerName}</p>
+                            <p className="text-xs text-gray-500">{order.customerEmail}</p>
+                            <p className="text-xs text-gray-400">{order.id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="max-w-xs truncate px-6 py-4 text-gray-700">
+                        {order.deliveryAddress}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {new Date(order.placedAt).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-gray-900">
+                        {formatAdminCurrency(order.totalAmount, order.currency)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <select
+                          value={patchValue}
+                          onChange={(e) =>
+                            void handleStatusChange(
+                              order.id,
+                              e.target.value as PatchOrderStatusValue,
+                            )
+                          }
+                          className={`cursor-pointer rounded-full border-0 px-3 py-1 text-xs font-semibold transition-all ${selectStylesForPatch(patchValue)}`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="shipped">Dispatched</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {!loading && filteredOrders.length === 0 && !listError && (
+          <p className="py-12 text-center text-sm text-gray-500">No orders match this view.</p>
+        )}
+
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-gray-200 px-6 py-4 sm:flex-row">
+          <p className="text-sm text-gray-600">
+            Page {pagination.currentPage + 1} of {Math.max(1, pagination.totalPages)}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page <= 0 || loading}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={loading || page >= pagination.totalPages - 1}
+              onClick={() => setPage((p) => p + 1)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </AdminPageShell>
   );
 }
-

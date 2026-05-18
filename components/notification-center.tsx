@@ -1,21 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useNotification } from '@/lib/notification-context';
-import {
-  type WebPushUiSnapshot,
-  getWebPushEnrollmentSnapshot,
-  requestWebPushSubscription,
-} from '@/lib/onesignal';
 import { Bell, X, Gift, Package, ShoppingCart, Info, BellOff, Loader2 } from 'lucide-react';
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
-  const [pushUi, setPushUi] = useState<WebPushUiSnapshot | null>(null);
-  const [pushBusy, setPushBusy] = useState(false);
-  const { data: session } = useSession();
   const {
     notifications,
     unreadCount,
@@ -61,16 +52,6 @@ export function NotificationCenter() {
     }
   }, [isOpen, refreshNotifications]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    void (async () => {
-      const snapshot = await getWebPushEnrollmentSnapshot();
-      setPushUi(snapshot);
-    })();
-  }, [isOpen]);
-
   return (
     <div className="relative mt-2">
       <button
@@ -112,54 +93,6 @@ export function NotificationCenter() {
             {error ? (
               <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
                 {error}
-              </div>
-            ) : null}
-
-            {pushUi?.configured && pushUi.supported ? (
-              <div className="mx-4 mt-3 rounded-lg border border-sky-100 bg-sky-50/90 px-3 py-2.5 text-sm text-sky-950">
-                {pushUi.optedIn ? (
-                  <p className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                    <span>Browser notifications are enabled for this site.</span>
-                  </p>
-                ) : pushUi.permission === 'denied' ? (
-                  <p className="flex items-start gap-2 text-amber-900">
-                    <BellOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                    <span>
-                      Notifications are blocked in your browser. Allow notifications for this site in your browser
-                      settings, then open this panel again.
-                    </span>
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="min-w-0 pr-2">
-                      Allow browser alerts for order updates and offers (works best while signed in).
-                    </p>
-                    <button
-                      type="button"
-                      disabled={pushBusy}
-                      className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-60"
-                      onClick={() => {
-                        setPushBusy(true);
-                        void requestWebPushSubscription(session?.user?.id ?? null)
-                          .then(setPushUi)
-                          .finally(() => setPushBusy(false));
-                      }}
-                    >
-                      {pushBusy ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                          Enabling…
-                        </>
-                      ) : (
-                        <>
-                          <Bell className="h-3.5 w-3.5" aria-hidden />
-                          Enable notifications
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
               </div>
             ) : null}
 

@@ -4,7 +4,6 @@ import { listOrderHistoryAction } from '@/actions/order-actions';
 import { PageHeader } from '@/components/page-header';
 import { ProtectedRoute } from '@/components/protected-route';
 import { SkeletonLoader } from '@/components/skeleton-loader';
-import { getStoredOrders } from '@/lib/order-storage';
 import type { Order } from '@/types/order';
 import { ChevronDown, Package } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -12,34 +11,62 @@ import { jsPDF } from 'jspdf';
 
 type OrderStatus = 'all' | 'completed' | 'pending' | 'shipped' | 'cancelled';
 
-/** Server-paid orders plus any local snapshots not yet on the API (same id → API wins). */
-function mergeOrderHistory(apiOrders: Order[], localOrders: Order[]): Order[] {
-  const seen = new Set<string>();
-  const merged: Order[] = [];
-  for (const o of apiOrders) {
-    seen.add(o.id);
-    merged.push(o);
-  }
-  for (const o of localOrders) {
-    if (!seen.has(o.id)) {
-      merged.push(o);
-    }
-  }
-  merged.sort((a, b) => {
+const ORDER_FILTER_TABS: { id: OrderStatus; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'completed', label: 'Complete' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'shipped', label: 'Shipping' },
+  { id: 'cancelled', label: 'Cancelled' },
+];
+
+function sortOrdersNewestFirst(orders: Order[]): Order[] {
+  return [...orders].sort((a, b) => {
     const db = Date.parse(`${b.date}T12:00:00`);
     const da = Date.parse(`${a.date}T12:00:00`);
     const safeB = Number.isNaN(db) ? 0 : db;
     const safeA = Number.isNaN(da) ? 0 : da;
     return safeB - safeA;
   });
-  return merged;
+}
+
+function countOrdersForFilter(orders: Order[], filter: OrderStatus): number {
+  if (filter === 'all') {
+    return orders.length;
+  }
+  return orders.filter((o) => o.status === filter).length;
+}
+
+function formatOrderStatusLabel(status: Order['status']): string {
+  switch (status) {
+    case 'completed':
+      return 'Complete';
+    case 'shipped':
+      return 'Shipping';
+    case 'pending':
+      return 'Pending';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return status;
+  }
+}
+
+const ORDER_TAX_EPSILON = 0.005;
+
+function computeOrderSubtotalAndTax(order: Order): { subtotal: number; tax: number } {
+  const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const tax = Math.max(0, order.total - subtotal);
+  return { subtotal, tax };
+}
+
+function shouldShowTaxLine(tax: number): boolean {
+  return tax > ORDER_TAX_EPSILON;
 }
 
 export default function HistoryPage() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>('all');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
-  const [savedOrders, setSavedOrders] = useState<Order[]>([]);
   const [serverHistoryOrders, setServerHistoryOrders] = useState<Order[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
@@ -49,15 +76,15 @@ export default function HistoryPage() {
     void (async () => {
       setIsPageLoading(true);
       setHistoryError(null);
-      setSavedOrders(getStoredOrders());
 
       const result = await listOrderHistoryAction({ page: 0, size: 100 });
+
       if (cancelled) {
         return;
       }
 
-      if (result.success && result.data) {
-        setServerHistoryOrders(result.data);
+      if (result.success) {
+        setServerHistoryOrders(result.data ?? []);
       } else {
         setServerHistoryOrders([]);
         setHistoryError(result.error ?? 'Could not load order history from the server.');
@@ -70,15 +97,25 @@ export default function HistoryPage() {
     };
   }, []);
 
-  const allOrders = useMemo(
-    () => mergeOrderHistory(serverHistoryOrders, savedOrders),
-    [serverHistoryOrders, savedOrders],
+  /** Orders shown on this page — from `GET /orders/history` only (no localStorage / mock merge). */
+  const historyOrders = useMemo(
+    () => sortOrdersNewestFirst(serverHistoryOrders),
+    [serverHistoryOrders],
   );
 
-  const filteredOrders =
-    selectedStatus === 'all'
-      ? allOrders
-      : allOrders.filter((order) => order.status === selectedStatus);
+  const filteredOrders = useMemo(() => {
+    if (selectedStatus === 'all') {
+      return historyOrders;
+    }
+    return historyOrders.filter((order) => order.status === selectedStatus);
+  }, [historyOrders, selectedStatus]);
+
+  /** Sum of `payload[].total` after normalization (`Order.total`). */
+  const totalSpent = useMemo(
+    () => historyOrders.reduce((sum, o) => sum + Number(o.total), 0),
+    [historyOrders],
+  );
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -115,8 +152,7 @@ export default function HistoryPage() {
     const margin = 14;
     const pageWidth = doc.internal.pageSize.getWidth();
     const right = pageWidth - margin;
-    const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const tax = Math.max(0, order.total - subtotal);
+    const { subtotal, tax } = computeOrderSubtotalAndTax(order);
     let y = 18;
 
     doc.setFillColor(16, 185, 129);
@@ -193,9 +229,12 @@ export default function HistoryPage() {
     doc.text('Subtotal', totalsX, y);
     doc.text(`$${subtotal.toFixed(2)}`, right - 2, y, { align: 'right' });
     y += 7;
-    doc.text('Tax', totalsX, y);
-    doc.text(`$${tax.toFixed(2)}`, right - 2, y, { align: 'right' });
-    y += 9;
+    if (shouldShowTaxLine(tax)) {
+      doc.text('Tax', totalsX, y);
+      doc.text(`$${tax.toFixed(2)}`, right - 2, y, { align: 'right' });
+      y += 7;
+    }
+    y += 2;
     doc.setFontSize(12);
     doc.text('Total', totalsX, y);
     doc.text(`$${order.total.toFixed(2)}`, right - 2, y, { align: 'right' });
@@ -212,28 +251,28 @@ export default function HistoryPage() {
   const summaryStats = [
     {
       label: 'Total Orders',
-      value: allOrders.length,
+      value: historyOrders.length,
       cardClass:
         'border-l-4 border-l-primary bg-gradient-to-br from-primary/10 via-white to-secondary/30',
       valueClass: 'text-primary',
     },
     {
       label: 'Completed',
-      value: allOrders.filter((o) => o.status === 'completed').length,
+      value: historyOrders.filter((o) => o.status === 'completed').length,
       cardClass:
         'border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/50',
       valueClass: 'text-emerald-800',
     },
     {
       label: 'In Transit',
-      value: allOrders.filter((o) => o.status === 'shipped').length,
+      value: historyOrders.filter((o) => o.status === 'shipped').length,
       cardClass:
         'border-l-4 border-l-sky-500 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/50',
       valueClass: 'text-sky-800',
     },
     {
       label: 'Total Spent',
-      value: `$${allOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}`,
+      value: `$${totalSpent.toFixed(2)}`,
       cardClass:
         'border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40',
       valueClass: 'text-amber-900',
@@ -285,26 +324,37 @@ export default function HistoryPage() {
               </div>
             ))}
           </div>
-
-          <div className="rounded-2xl border border-primary/20 bg-white/80 p-6 mb-8 shadow-sm backdrop-blur-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex flex-wrap gap-2">
-                {['all', 'completed', 'pending', 'shipped', 'cancelled'].map((status) => (
+          {/* <div className="mb-8 rounded-2xl border border-primary/20 bg-white/80 p-4 shadow-sm backdrop-blur-sm sm:p-6">
+            <p className="mb-3 text-sm font-medium text-gray-700">Filter by status</p>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 pt-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+              {ORDER_FILTER_TABS.map(({ id, label }) => {
+                const count = countOrdersForFilter(historyOrders, id);
+                const selected = selectedStatus === id;
+                return (
                   <button
-                    key={status}
-                    onClick={() => setSelectedStatus(status as OrderStatus)}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                      selectedStatus === status
-                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                        : 'bg-secondary/80 text-gray-700 hover:bg-secondary border border-transparent hover:border-primary/20'
+                    key={id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setSelectedStatus(id)}
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                      selected
+                        ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                        : 'border-gray-200 bg-secondary/70 text-gray-800 hover:border-primary/30 hover:bg-secondary'
                     }`}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    <span>{label}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                        selected ? 'bg-white/25 text-white' : 'bg-gray-200/90 text-gray-700'
+                      }`}
+                    >
+                      {count}
+                    </span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          </div>
+          </div> */}
 
           <div className="space-y-4">
             {filteredOrders.length > 0 ? (
@@ -320,7 +370,7 @@ export default function HistoryPage() {
                     <div className="flex-1 text-left">
                       <div className="flex items-center gap-4 mb-3">
                         <div>
-                          <p className="font-semibold text-gray-900">Order {order.id}</p>
+                          <p className="font-semibold text-gray-900">Your Order </p>
                           <p className="text-sm text-gray-600">{order.date}</p>
                         </div>
                         <span
@@ -329,7 +379,7 @@ export default function HistoryPage() {
                           )}`}
                         >
                           {getStatusIcon(order.status)}{' '}
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          {formatOrderStatusLabel(order.status)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
@@ -391,18 +441,28 @@ export default function HistoryPage() {
                       </div>
 
                       <div className="border-t border-gray-200 pt-4 mb-6 space-y-2">
-                        <div className="flex justify-between text-gray-700">
-                          <span>Subtotal</span>
-                          <span>${(order.total / 1.1).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-700">
-                          <span>Tax</span>
-                          <span>${(order.total - order.total / 1.1).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
-                          <span>Total</span>
-                          <span>${order.total.toFixed(2)}</span>
-                        </div>
+                        {(() => {
+                          const { subtotal, tax } = computeOrderSubtotalAndTax(order);
+                          const showTax = shouldShowTaxLine(tax);
+                          return (
+                            <>
+                              <div className="flex justify-between text-gray-700">
+                                <span>Subtotal</span>
+                                <span>${subtotal.toFixed(2)}</span>
+                              </div>
+                              {showTax ? (
+                                <div className="flex justify-between text-gray-700">
+                                  <span>Tax</span>
+                                  <span>${tax.toFixed(2)}</span>
+                                </div>
+                              ) : null}
+                              <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
+                                <span>Total</span>
+                                <span>${order.total.toFixed(2)}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
 
                       {order.trackingNumber && (
@@ -419,23 +479,13 @@ export default function HistoryPage() {
                         </div>
                       )}
 
-                      <div className="flex gap-3">
-                        {order.status === 'completed' && (
-                          <button className="flex-1 px-4 py-2 bg-gradient-to-r from-primary to-primary/90 text-white rounded-lg font-semibold hover:from-primary/90 hover:to-primary transition-all shadow-sm">
-                            Buy Again
-                          </button>
-                        )}
+                      <div className="flex gap-3"> 
                         <button
                           onClick={() => handleDownloadInvoice(order)}
                           className="flex-1 px-4 py-2 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-white transition-all"
                         >
                           View Invoice
                         </button>
-                        {order.status !== 'cancelled' && (
-                          <button className="flex-1 px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-all">
-                            Cancel Order
-                          </button>
-                        )}
                       </div>
                     </div>
                   )}
